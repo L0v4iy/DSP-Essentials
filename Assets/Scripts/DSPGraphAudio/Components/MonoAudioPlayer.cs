@@ -71,7 +71,7 @@ namespace DSPGraphAudio.Components
             m_Output.Dispose();
         }
 
-        private void PlayAudioClip()
+        public void PlayAudioClip()
         {
             if (clipToPlay == null)
             {
