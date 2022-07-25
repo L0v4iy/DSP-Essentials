@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using DSPGraphAudio.DSP;
+using DSPGraphAudio.Kernel.AudioKernel;
+using DSPGraphAudio.Kernel.PlayClipKernel;
 using Unity.Audio;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -102,17 +104,17 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Decide on playback rate here by taking the provider input rate and the output settings of the system
             float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-            block.SetFloat<PlayClipKernel.Parameters, PlayClipKernel.SampleProviders, PlayClipKernel>(
+            block.SetFloat<PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders, PlayClipKernel.PlayClipKernel>(
                 clipNode,
-                PlayClipKernel.Parameters.Rate,
+                PlayClipKernel.PlayClipKernel.Parameters.Rate,
                 resampleRate
             );
 
             // Assign the sample provider to the slot of the node.
-            block.SetSampleProvider<PlayClipKernel.Parameters, PlayClipKernel.SampleProviders, PlayClipKernel>(
+            block.SetSampleProvider<PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders, PlayClipKernel.PlayClipKernel>(
                 audioClip,
                 clipNode,
-                PlayClipKernel.SampleProviders.DefaultSlot
+                PlayClipKernel.PlayClipKernel.SampleProviders.DefaultSlot
             );
 
             // Set spatializer node parameters.
@@ -148,9 +150,9 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Set lowpass based on distance.
             _clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
+            block.SetFloat<AudioKernel.AudioKernel.Parameters, AudioKernel.AudioKernel.SampleProviders, AudioKernel.AudioKernel>(
                 lowpassFilterNode,
-                AudioKernel.Parameters.Cutoff,
+                AudioKernel.AudioKernel.Parameters.Cutoff,
                 math.clamp(
                     1 / closestInside10mCircle * sampleRatePerChannel,
                     1000,
@@ -158,8 +160,8 @@ namespace DSPGraphAudio.Kernel.Systems
                 )
             );
             // Kick off playback.
-            block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.Parameters, PlayClipKernel.SampleProviders,
-                PlayClipKernel>(
+            block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders,
+                PlayClipKernel.PlayClipKernel>(
                 new
                     PlayClipKernelUpdate(),
                 clipNode
@@ -236,7 +238,7 @@ namespace DSPGraphAudio.Kernel.Systems
         private DSPNode createPlayClipNode(DSPCommandBlock block, int channels)
         {
             DSPNode node =
-                block.CreateDSPNode<PlayClipKernel.Parameters, PlayClipKernel.SampleProviders, PlayClipKernel>();
+                block.CreateDSPNode<PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders, PlayClipKernel.PlayClipKernel>();
 
             // Currently input and output ports are dynamic and added via this API to a node.
             // This will change to a static definition of nodes in the future.
@@ -286,10 +288,10 @@ namespace DSPGraphAudio.Kernel.Systems
         private DSPNode createLowpassFilterNode(DSPCommandBlock block, float cutoffHz, int channels)
         {
             DSPNode node = AudioKernelFacade.CreateNode(block, Filter.Type.Lowpass, channels);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders,
-                AudioKernel>(
+            block.SetFloat<AudioKernel.AudioKernel.Parameters, AudioKernel.AudioKernel.SampleProviders,
+                AudioKernel.AudioKernel>(
                 node,
-                AudioKernel.Parameters.Cutoff,
+                AudioKernel.AudioKernel.Parameters.Cutoff,
                 cutoffHz
             );
             return node;

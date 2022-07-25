@@ -4,7 +4,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
-namespace DSPGraphAudio.Kernel
+namespace DSPGraphAudio.Kernel.PlayClipKernel
 {
     // The 'audio job'. This is the kernel that defines a running DSP node inside the
     // DSPGraph. It is a struct that implements the IAudioKernel interface. It can contain

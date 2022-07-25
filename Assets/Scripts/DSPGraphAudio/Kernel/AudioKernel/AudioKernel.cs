@@ -4,7 +4,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace DSPGraphAudio.Kernel
+namespace DSPGraphAudio.Kernel.AudioKernel
 {
     [BurstCompile(CompileSynchronously = true)]
         public struct AudioKernel : IAudioKernel<AudioKernel.Parameters, AudioKernel.SampleProviders>

@@ -1,6 +1,7 @@
 using System;
 using DSPGraphAudio.DSP;
 using DSPGraphAudio.Kernel;
+using DSPGraphAudio.Kernel.AudioKernel;
 using Unity.Audio;
 using UnityEngine;
 

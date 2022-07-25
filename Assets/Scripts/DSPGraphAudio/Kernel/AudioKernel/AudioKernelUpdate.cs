@@ -1,7 +1,7 @@
 ﻿using Unity.Audio;
 using Unity.Burst;
 
-namespace DSPGraphAudio.Kernel
+namespace DSPGraphAudio.Kernel.AudioKernel
 {
     [BurstCompile(CompileSynchronously = true)]
     internal struct AudioKernelUpdate :

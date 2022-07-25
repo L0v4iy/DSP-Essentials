@@ -1,7 +1,7 @@
 ﻿using DSPGraphAudio.DSP;
 using Unity.Audio;
 
-namespace DSPGraphAudio.Kernel
+namespace DSPGraphAudio.Kernel.AudioKernel
 {
     public struct AudioKernelFacade
     {
