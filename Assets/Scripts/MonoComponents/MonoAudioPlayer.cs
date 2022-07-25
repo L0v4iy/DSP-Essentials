@@ -108,7 +108,7 @@ namespace MonoComponents
 
                 // Assign the sample provider to the slot of the node.
                 block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
-                    clipToPlay, _node, AudioKernel.SampleProviders.DefaultOutput);
+                    clipToPlay, _node, AudioKernel.SampleProviders.DefaultSlot);
 
                 // Kick off playback. This will be done in a better way in the future.
                 block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,

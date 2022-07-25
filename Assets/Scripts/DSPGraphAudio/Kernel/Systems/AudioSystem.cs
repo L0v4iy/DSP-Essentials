@@ -76,13 +76,17 @@ namespace DSPGraphAudio.Kernel.Systems
                 }
             );
         }
-
-        // Play a one shot (relative to the listener).
-        // 1. Get free node.
-        // 2. Set up playclip params.
-        // 3. Set up spatializer params.
-        // 4. Set connection attenuation.
-        // 5. Set lowpass filter.
+        
+        /// <summary>
+        /// Play a one shot (relative to the listener).
+        /// 1. Get free node.
+        /// 2. Set up <param name="audioClip"></param> params.
+        /// 3. Set up spatializer params.
+        /// 4. Set connection attenuation.
+        /// 5. Set lowpass filter.
+        /// </summary>
+        /// <param name="audioClip"></param>
+        /// <param name="relativeTranslation"></param>
         public void PlayOneShot(AudioClip audioClip, float3 relativeTranslation)
         {
             DSPCommandBlock block = _graph.CreateCommandBlock();
@@ -97,7 +101,7 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Assign the sample provider to the slot of the node.
             block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-            (audioClip, clipNode, AudioKernel.SampleProviders.DefaultOutput
+            (audioClip, clipNode, AudioKernel.SampleProviders.DefaultSlot
             );
 
             // Set spatializer node parameters.
@@ -149,8 +153,10 @@ namespace DSPGraphAudio.Kernel.Systems
             block.Complete();
         }
 
-        // Return free node (already added to playing nodes). 
-        // Also sets up needed nodes and connections.
+        /// <summary>
+        /// Return free node (already added to playing nodes).
+        /// Can set up needed nodes and connections.
+        /// </summary>
         protected DSPNode GetFreeNode(DSPCommandBlock block, int channels)
         {
             try

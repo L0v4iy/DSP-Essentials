@@ -3,6 +3,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace DSPGraphAudio.DSP
 {
@@ -69,6 +70,16 @@ namespace DSPGraphAudio.DSP
         }
     }
     
+    
+    internal struct SpatializerKernelUpdate:
+        IAudioKernelUpdate<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>
+    {
+        public void Update(ref SpatializerKernel audioKernel)
+        {
+            Debug.Log("Start spatalizer");
+        }
+    }
+
     // The "spatializer" can apply a delay to a channel by a number of samples, so that a sound appears to be coming
     // from the other side.
     // Always is stereo.

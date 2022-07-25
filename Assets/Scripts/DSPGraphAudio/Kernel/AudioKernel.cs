@@ -42,8 +42,7 @@ namespace DSPGraphAudio.Kernel
 
         public enum SampleProviders
         {
-            DefaultOutput,
-            DefaultInput
+            DefaultSlot
         }
 
         [NativeDisableContainerSafetyRestriction]
@@ -112,7 +111,7 @@ namespace DSPGraphAudio.Kernel
 
                 // Get the sample provider for the AudioClip currently being played. This allows
                 // streaming of samples from the clip into a buffer.
-                SampleProvider provider = context.Providers.GetSampleProvider(SampleProviders.DefaultOutput);
+                SampleProvider provider = context.Providers.GetSampleProvider(SampleProviders.DefaultSlot);
 
                 // We pass the provider to the resampler. If the resampler finishes streaming all the samples, it returns
                 // true.
