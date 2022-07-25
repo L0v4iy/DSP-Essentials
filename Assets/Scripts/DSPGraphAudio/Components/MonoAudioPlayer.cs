@@ -1,5 +1,5 @@
 ﻿using DSPGraphAudio.Kernel;
-using DSPGraphAudio.Kernel.PlayClipKernel;
+using DSPGraphAudio.Kernel.PlayClip;
 using Unity.Audio;
 using UnityEngine;
 

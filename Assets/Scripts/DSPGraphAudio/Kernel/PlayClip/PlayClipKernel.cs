@@ -4,7 +4,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace DSPGraphAudio.Kernel.PlayClipKernel
+namespace DSPGraphAudio.Kernel.PlayClip
 {
     // From the DSPGraph 0.1.0-preview.11 samples, with small modifications.
     //
@@ -28,6 +28,7 @@ namespace DSPGraphAudio.Kernel.PlayClipKernel
         // AudioClips and VideoPlayers. They will eventually be able to pull samples from microphones and other concepts.
         public enum SampleProviders
         {
+            
             DefaultSlot
         }
 

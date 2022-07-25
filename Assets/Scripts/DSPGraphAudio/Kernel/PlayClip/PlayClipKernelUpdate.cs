@@ -1,7 +1,7 @@
 ﻿using Unity.Audio;
 using Unity.Burst;
 
-namespace DSPGraphAudio.Kernel.PlayClipKernel
+namespace DSPGraphAudio.Kernel.PlayClip
 {
     // From the DSPGraph 0.1.0-preview.11 samples, with small modifications.
     [BurstCompile(CompileSynchronously = true)]

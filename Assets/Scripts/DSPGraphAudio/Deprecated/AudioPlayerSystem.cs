@@ -1,9 +1,9 @@
-﻿using DSPGraphAudio.Kernel.PlayClipKernel;
+﻿using DSPGraphAudio.Kernel.PlayClip;
 using Unity.Audio;
 using Unity.Entities;
 using UnityEngine;
 
-namespace DSPGraphAudio.Kernel.Systems
+namespace DSPGraphAudio.Deprecated
 {
     public partial class AudioPlayerSystem : SystemBase
     {
@@ -87,8 +87,8 @@ namespace DSPGraphAudio.Kernel.Systems
                     clip, _node, PlayClipNode.SampleProviders.DefaultSlot);
 
                 // Kick off playback. This will be done in a better way in the future.
-                block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders,
-                    PlayClipKernel.PlayClipKernel>(new PlayClipKernelUpdate(), _node);
+                block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.Parameters, PlayClipKernel.SampleProviders,
+                    PlayClipKernel>(new PlayClipKernelUpdate(), _node);
             }
         }
 

@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DSPGraphAudio.DSP;
-using DSPGraphAudio.Kernel.AudioKernel;
-using DSPGraphAudio.Kernel.PlayClipKernel;
+using DSPGraphAudio.Kernel.Audio;
 using Unity.Audio;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -103,18 +102,14 @@ namespace DSPGraphAudio.Kernel.Systems
             DSPNode clipNode = GetFreeNode(block, _graph.OutputChannelCount);
 
             // Decide on playback rate here by taking the provider input rate and the output settings of the system
-            float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-            block.SetFloat<PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders, PlayClipKernel.PlayClipKernel>(
-                clipNode,
-                PlayClipKernel.PlayClipKernel.Parameters.Rate,
-                resampleRate
-            );
+            /*float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
+            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
+            (clipNode, AudioKernel.Parameters.Rate, resampleRate
+            );*/
 
             // Assign the sample provider to the slot of the node.
-            block.SetSampleProvider<PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders, PlayClipKernel.PlayClipKernel>(
-                audioClip,
-                clipNode,
-                PlayClipKernel.PlayClipKernel.SampleProviders.DefaultSlot
+            block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
+            (audioClip, clipNode, AudioKernel.SampleProviders.DefaultOutput
             );
 
             // Set spatializer node parameters.
@@ -150,9 +145,9 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Set lowpass based on distance.
             _clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
-            block.SetFloat<AudioKernel.AudioKernel.Parameters, AudioKernel.AudioKernel.SampleProviders, AudioKernel.AudioKernel>(
+            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
                 lowpassFilterNode,
-                AudioKernel.AudioKernel.Parameters.Cutoff,
+                AudioKernel.Parameters.Cutoff,
                 math.clamp(
                     1 / closestInside10mCircle * sampleRatePerChannel,
                     1000,
@@ -160,12 +155,8 @@ namespace DSPGraphAudio.Kernel.Systems
                 )
             );
             // Kick off playback.
-            block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders,
-                PlayClipKernel.PlayClipKernel>(
-                new
-                    PlayClipKernelUpdate(),
-                clipNode
-            );
+            block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
+                (new AudioKernelUpdate(), clipNode);
 
             block.Complete();
         }
@@ -206,7 +197,7 @@ namespace DSPGraphAudio.Kernel.Systems
                 //         └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘                            
                 //          clipToSpatializerMap   clipToLowpassMap                               
                 //                              
-                DSPNode node = createPlayClipNode(block, channels);
+                DSPNode node = CreatePlayClipNode(block, channels);
                 DSPNode spatializerNode = CreateSpatializerNode(block, channels);
                 _playingNodes.Add(node);
                 _clipToSpatializerMap.Add(node, spatializerNode);
@@ -216,7 +207,7 @@ namespace DSPGraphAudio.Kernel.Systems
                 _clipToConnectionMap.Add(node, nodeSpatializerConnection);
 
                 // Lowpass based on distance.
-                DSPNode lowpassFilterNode = createLowpassFilterNode(block, 1000, channels);
+                DSPNode lowpassFilterNode = CreateLowpassFilterNode(block, 1000, channels);
                 _clipToLowpassMap.Add(node, lowpassFilterNode);
 
                 // Insert lowpass filter node between spatializer and root node.
@@ -235,10 +226,10 @@ namespace DSPGraphAudio.Kernel.Systems
             return connection;
         }
 
-        private DSPNode createPlayClipNode(DSPCommandBlock block, int channels)
+        private DSPNode CreatePlayClipNode(DSPCommandBlock block, int channels)
         {
             DSPNode node =
-                block.CreateDSPNode<PlayClipKernel.PlayClipKernel.Parameters, PlayClipKernel.PlayClipKernel.SampleProviders, PlayClipKernel.PlayClipKernel>();
+                block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
 
             // Currently input and output ports are dynamic and added via this API to a node.
             // This will change to a static definition of nodes in the future.
@@ -285,13 +276,13 @@ namespace DSPGraphAudio.Kernel.Systems
         //                         Filter.AudioKernel.Parameters.Cutoff,
         //                         cutoffHz
         //                        );
-        private DSPNode createLowpassFilterNode(DSPCommandBlock block, float cutoffHz, int channels)
+        private DSPNode CreateLowpassFilterNode(DSPCommandBlock block, float cutoffHz, int channels)
         {
-            DSPNode node = AudioKernelFacade.CreateNode(block, Filter.Type.Lowpass, channels);
-            block.SetFloat<AudioKernel.AudioKernel.Parameters, AudioKernel.AudioKernel.SampleProviders,
-                AudioKernel.AudioKernel>(
+            DSPNode node = AudioKernelUtils.CreateNode(block, Filter.Type.Lowpass, channels);
+            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders,
+                AudioKernel>(
                 node,
-                AudioKernel.AudioKernel.Parameters.Cutoff,
+                AudioKernel.Parameters.Cutoff,
                 cutoffHz
             );
             return node;
@@ -308,9 +299,7 @@ namespace DSPGraphAudio.Kernel.Systems
             using (DSPCommandBlock block = _graph.CreateCommandBlock())
             {
                 for (int i = 0; i < _connections.Count; i++) block.Disconnect(_connections[i]);
-
                 for (int i = 0; i < _freeNodes.Count; i++) block.ReleaseDSPNode(_freeNodes[i]);
-
                 for (int i = 0; i < _playingNodes.Count; i++) block.ReleaseDSPNode(_playingNodes[i]);
             }
 

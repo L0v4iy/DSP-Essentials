@@ -5,7 +5,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace DSPGraphAudio.AudioOutputJob
+namespace Mono
 {
     public class SineToneBehaviour : MonoBehaviour
     {

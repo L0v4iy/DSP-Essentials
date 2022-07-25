@@ -1,9 +1,9 @@
 ﻿using DSPGraphAudio.DSP;
 using Unity.Audio;
 
-namespace DSPGraphAudio.Kernel.AudioKernel
+namespace DSPGraphAudio.Kernel.Audio
 {
-    public struct AudioKernelFacade
+    public struct AudioKernelUtils
     {
         public static DSPNode CreateNode(DSPCommandBlock block, Filter.Type type, int channels)
         {
