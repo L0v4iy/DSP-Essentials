@@ -5,7 +5,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Mono
+namespace MonoComponents
 {
     public class SineToneBehaviour : MonoBehaviour
     {

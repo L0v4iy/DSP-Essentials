@@ -1,21 +1,20 @@
 ﻿using DSPGraphAudio.Kernel;
-using DSPGraphAudio.Kernel.Audio;
-using DSPGraphAudio.Kernel.PlayClip;
+using DSPGraphAudio.Kernel.Systems;
 using Unity.Audio;
 using UnityEngine;
 
-namespace DSPGraphAudio.Components
+namespace MonoComponents
 {
     public class MonoAudioPlayer : MonoBehaviour
     {
         public AudioClip clipToPlay;
 
-        private AudioOutputHandle m_Output;
-        private DSPGraph m_Graph;
-        private DSPNode m_Node;
-        private DSPConnection m_Connection;
+        private AudioOutputHandle _output;
+        private DSPGraph _graph;
+        private DSPNode _node;
+        private DSPConnection _connection;
 
-        private int m_HandlerID;
+        private int _handlerID;
 
         private void Start()
         {
@@ -25,30 +24,30 @@ namespace DSPGraphAudio.Components
 
             int sampleRate = AudioSettings.outputSampleRate;
 
-            m_Graph = DSPGraph.Create(format, channels, bufferLength, sampleRate);
+            _graph = DSPGraph.Create(format, channels, bufferLength, sampleRate);
 
-            DefaultDSPGraphDriver driver = new DefaultDSPGraphDriver { Graph = m_Graph };
-            m_Output = driver.AttachToDefaultOutput();
+            DefaultDSPGraphDriver driver = new DefaultDSPGraphDriver { Graph = _graph };
+            _output = driver.AttachToDefaultOutput();
 
             // Add an event handler delegate to the graph for ClipStopped. So we are notified
             // of when a clip is stopped in the node and can handle the resources on the main thread.
-            m_HandlerID = m_Graph.AddNodeEventHandler<PlayClipNode.ClipStoppedEvent>((node, evt) =>
+            _handlerID = _graph.AddNodeEventHandler<AudioSystem.ClipStoppedEvent>((node, evt) =>
             {
                 Debug.Log("Received ClipStopped event on main thread, cleaning resources");
             });
 
             // All async interaction with the graph must be done through a DSPCommandBlock.
             // Create it here and complete it once all commands are added.
-            DSPCommandBlock block = m_Graph.CreateCommandBlock();
+            DSPCommandBlock block = _graph.CreateCommandBlock();
 
-            m_Node = block.CreateDSPNode<PlayClipNode.Parameters, PlayClipNode.SampleProviders, PlayClipNode>();
+            _node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
 
             // Currently input and output ports are dynamic and added via this API to a node.
             // This will change to a static definition of nodes in the future.
-            block.AddOutletPort(m_Node, 2);
+            block.AddOutletPort(_node, 2);
 
             // Connect the node to the root of the graph.
-            m_Connection = block.Connect(m_Node, 0, m_Graph.RootDSP, 0);
+            _connection = block.Connect(_node, 0, _graph.RootDSP, 0);
 
             // We are done, fire off the command block atomically to the mixer thread.
             block.Complete();
@@ -56,21 +55,21 @@ namespace DSPGraphAudio.Components
 
         private void Update()
         {
-            m_Graph.Update();
+            _graph.Update();
         }
 
         private void OnDisable()
         {
             // Command blocks can also be completed via the C# 'using' construct for convenience
-            using (DSPCommandBlock block = m_Graph.CreateCommandBlock())
+            using (DSPCommandBlock block = _graph.CreateCommandBlock())
             {
-                block.Disconnect(m_Connection);
-                block.ReleaseDSPNode(m_Node);
+                block.Disconnect(_connection);
+                block.ReleaseDSPNode(_node);
             }
 
-            m_Graph.RemoveNodeEventHandler(m_HandlerID);
+            _graph.RemoveNodeEventHandler(_handlerID);
 
-            m_Output.Dispose();
+            _output.Dispose();
         }
 
         public void PlayAudioClip()
@@ -98,16 +97,24 @@ namespace DSPGraphAudio.Components
                     PlayClipKernel>(new PlayClipKernelUpdate(), m_Node);
             }
             */
-            
-            using (DSPCommandBlock block = m_Graph.CreateCommandBlock())
+
+            using (DSPCommandBlock block = _graph.CreateCommandBlock())
             {
+                // Decide on playback rate here by taking the provider input rate and the output settings of the system
+                // Decide on playback rate here by taking the provider input rate and the output settings of the system
+                float resampleRate = (float)clipToPlay.frequency / AudioSettings.outputSampleRate;
+                block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(_node,
+                    AudioKernel.Parameters.Rate, resampleRate);
+
                 // Assign the sample provider to the slot of the node.
                 block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
-                    clipToPlay, m_Node, AudioKernel.SampleProviders.DefaultOutput);
+                    clipToPlay, _node, AudioKernel.SampleProviders.DefaultOutput);
 
                 // Kick off playback. This will be done in a better way in the future.
                 block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,
-                    AudioKernel>(new AudioKernelUpdate(), m_Node);
+                    AudioKernel>(new AudioKernelUpdate(), _node);
+                /*block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.Parameters, PlayClipKernel.SampleProviders,
+                    PlayClipKernel>(new PlayClipKernelUpdate(), _node);*/
             }
         }
     }

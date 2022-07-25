@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 #if ENABLE_INPUT_SYSTEM
 #endif
 
-namespace Mono
+namespace MonoComponents
 {
     public class SimpleCameraController : MonoBehaviour
     {

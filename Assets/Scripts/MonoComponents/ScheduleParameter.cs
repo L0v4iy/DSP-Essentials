@@ -1,10 +1,10 @@
 using System;
 using DSPGraphAudio.DSP;
-using DSPGraphAudio.Kernel.Audio;
+using DSPGraphAudio.Kernel;
 using Unity.Audio;
 using UnityEngine;
 
-namespace Mono
+namespace MonoComponents
 {
     public class ScheduleParameter : MonoBehaviour
     {

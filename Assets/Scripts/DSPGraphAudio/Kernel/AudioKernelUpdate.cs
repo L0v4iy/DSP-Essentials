@@ -2,7 +2,7 @@
 using Unity.Burst;
 using UnityEngine;
 
-namespace DSPGraphAudio.Kernel.Audio
+namespace DSPGraphAudio.Kernel
 {
     [BurstCompile(CompileSynchronously = true)]
     internal struct AudioKernelUpdate :
@@ -14,7 +14,8 @@ namespace DSPGraphAudio.Kernel.Audio
         public void Update(ref AudioKernel audioKernel)
         {
             // recalculate listener position job
-            Debug.Log("Recalculate listener position job");
+            audioKernel.Playing = true;
+            Debug.Log("AudioKernelUpdate");
         }
     }
 }

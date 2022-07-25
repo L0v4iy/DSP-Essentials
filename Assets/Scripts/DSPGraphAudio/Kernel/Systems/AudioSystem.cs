@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using DSPGraphAudio.DSP;
-using DSPGraphAudio.Kernel.Audio;
 using Unity.Audio;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -20,8 +19,11 @@ namespace DSPGraphAudio.Kernel.Systems
         private const int SpeedOfSoundMPerS = 343;
 
         // Clip stopped event.
-        public struct ClipStopped
+        public enum ClipStoppedEvent
         {
+            ManualStop,
+            ClipEnd,
+            Error
         }
 
         private DSPGraph _graph;
@@ -63,7 +65,7 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Add an event handler delegate to the graph for ClipStopped. So we are notified
             // of when a clip is stopped in the node and can handle the resources on the main thread.
-            _handlerID = _graph.AddNodeEventHandler<ClipStopped>(
+            _handlerID = _graph.AddNodeEventHandler<ClipStoppedEvent>(
                 (node, evt) =>
                 {
                     // Debug.Log(
