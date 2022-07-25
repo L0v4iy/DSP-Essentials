@@ -148,7 +148,7 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Set lowpass based on distance.
             _clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.Providers, AudioKernel>(
+            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
                 lowpassFilterNode,
                 AudioKernel.Parameters.Cutoff,
                 math.clamp(
@@ -286,7 +286,7 @@ namespace DSPGraphAudio.Kernel.Systems
         private DSPNode createLowpassFilterNode(DSPCommandBlock block, float cutoffHz, int channels)
         {
             DSPNode node = AudioKernelFacade.CreateNode(block, Filter.Type.Lowpass, channels);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.Providers,
+            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders,
                 AudioKernel>(
                 node,
                 AudioKernel.Parameters.Cutoff,

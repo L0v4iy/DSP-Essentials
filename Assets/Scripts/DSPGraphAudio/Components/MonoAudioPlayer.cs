@@ -39,7 +39,7 @@ namespace DSPGraphAudio.Components
             // Create it here and complete it once all commands are added.
             DSPCommandBlock block = m_Graph.CreateCommandBlock();
 
-            m_Node = block.CreateDSPNode<PlayClipNode.NoteParameters, PlayClipNode.NoteProviders, PlayClipNode>();
+            m_Node = block.CreateDSPNode<PlayClipNode.Parameters, PlayClipNode.SampleProviders, PlayClipNode>();
 
             // Currently input and output ports are dynamic and added via this API to a node.
             // This will change to a static definition of nodes in the future.
@@ -83,12 +83,12 @@ namespace DSPGraphAudio.Components
             {
                 // Decide on playback rate here by taking the provider input rate and the output settings of the system
                 float resampleRate = (float)clipToPlay.frequency / AudioSettings.outputSampleRate;
-                block.SetFloat<PlayClipNode.NoteParameters, PlayClipNode.NoteProviders, PlayClipNode>(m_Node,
-                    PlayClipNode.NoteParameters.Rate, resampleRate);
+                block.SetFloat<PlayClipNode.Parameters, PlayClipNode.SampleProviders, PlayClipNode>(m_Node,
+                    PlayClipNode.Parameters.Rate, resampleRate);
 
                 // Assign the sample provider to the slot of the node.
-                block.SetSampleProvider<PlayClipNode.NoteParameters, PlayClipNode.NoteProviders, PlayClipNode>(
-                    clipToPlay, m_Node, PlayClipNode.NoteProviders.DefaultSlot);
+                block.SetSampleProvider<PlayClipNode.Parameters, PlayClipNode.SampleProviders, PlayClipNode>(
+                    clipToPlay, m_Node, PlayClipNode.SampleProviders.DefaultSlot);
 
                 // Kick off playback. This will be done in a better way in the future.
                 block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.Parameters, PlayClipKernel.SampleProviders,

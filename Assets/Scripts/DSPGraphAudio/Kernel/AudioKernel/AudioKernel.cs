@@ -7,7 +7,7 @@ using Unity.Collections.LowLevel.Unsafe;
 namespace DSPGraphAudio.Kernel
 {
     [BurstCompile(CompileSynchronously = true)]
-        public struct AudioKernel : IAudioKernel<AudioKernel.Parameters, AudioKernel.Providers>
+        public struct AudioKernel : IAudioKernel<AudioKernel.Parameters, AudioKernel.SampleProviders>
         {
             private struct Channel
             {
@@ -36,7 +36,7 @@ namespace DSPGraphAudio.Kernel
                 GainInDBs
             }
 
-            public enum Providers
+            public enum SampleProviders
             {
             }
 
@@ -45,7 +45,7 @@ namespace DSPGraphAudio.Kernel
                 _channels = new NativeArray<Channel>(2, Allocator.AudioKernel);
             }
 
-            public void Execute(ref ExecuteContext<Parameters, Providers> context)
+            public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)
             {
                 SampleBuffer input = context.Inputs.GetSampleBuffer(0);
                 SampleBuffer output = context.Outputs.GetSampleBuffer(0);

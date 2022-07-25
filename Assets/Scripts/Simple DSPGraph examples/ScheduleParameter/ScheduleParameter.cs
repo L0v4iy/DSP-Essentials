@@ -63,7 +63,7 @@ namespace Simple_DSPGraph_examples.ScheduleParameter
                 float newCutoff = GUI.HorizontalSlider(new Rect(100, 100, 300, 30), Cutoff, 10.0f, 22000.0f);
                 if (Math.Abs(newCutoff - Cutoff) > 0.01f)
                 {
-                    block.SetFloat<AudioKernel.Parameters, AudioKernel.Providers, AudioKernel>
+                    block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
                         (m_LowPass, AudioKernel.Parameters.Cutoff, newCutoff);
                     Cutoff = newCutoff;
                 }
@@ -72,7 +72,7 @@ namespace Simple_DSPGraph_examples.ScheduleParameter
                 float newq = GUI.HorizontalSlider(new Rect(100, 190, 300, 30), Q, 1.0f, 100.0f);
                 if (Math.Abs(newq - Q) > 0.01f)
                 {
-                    block.SetFloat<AudioKernel.Parameters, AudioKernel.Providers, AudioKernel>
+                    block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
                         (m_LowPass, AudioKernel.Parameters.Q, newq);
                     Q = newq;
                 }
@@ -81,7 +81,7 @@ namespace Simple_DSPGraph_examples.ScheduleParameter
                 float newGain = GUI.HorizontalSlider(new Rect(100, 280, 300, 30), Gain, -80.0f, 0.0f);
                 if (Math.Abs(newGain - Gain) > 0.01f)
                 {
-                    block.SetFloat<AudioKernel.Parameters, AudioKernel.Providers, AudioKernel>
+                    block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
                         (m_LowPass, AudioKernel.Parameters.GainInDBs, newGain);
                     Gain = newGain;
                 }

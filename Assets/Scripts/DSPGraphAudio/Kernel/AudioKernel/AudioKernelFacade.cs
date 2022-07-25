@@ -7,10 +7,10 @@ namespace DSPGraphAudio.Kernel
     {
         public static DSPNode CreateNode(DSPCommandBlock block, Filter.Type type, int channels)
         {
-            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.Providers, AudioKernel>();
+            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
             block.AddInletPort(node, channels);
             block.AddOutletPort(node, channels);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.Providers, AudioKernel>(
+            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
                 node,
                 AudioKernel.Parameters.FilterType,
                 (float)type
