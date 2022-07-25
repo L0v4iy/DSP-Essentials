@@ -1,5 +1,6 @@
 ﻿using Unity.Audio;
 using Unity.Burst;
+using UnityEngine;
 
 namespace DSPGraphAudio.Kernel.Audio
 {
@@ -13,6 +14,7 @@ namespace DSPGraphAudio.Kernel.Audio
         public void Update(ref AudioKernel audioKernel)
         {
             // recalculate listener position job
+            Debug.Log("Recalculate listener position job");
         }
     }
 }

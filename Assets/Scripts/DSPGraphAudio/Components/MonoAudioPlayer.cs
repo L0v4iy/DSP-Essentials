@@ -1,4 +1,5 @@
 ﻿using DSPGraphAudio.Kernel;
+using DSPGraphAudio.Kernel.Audio;
 using DSPGraphAudio.Kernel.PlayClip;
 using Unity.Audio;
 using UnityEngine;
@@ -80,6 +81,7 @@ namespace DSPGraphAudio.Components
                 return;
             }
 
+            /*
             using (DSPCommandBlock block = m_Graph.CreateCommandBlock())
             {
                 // Decide on playback rate here by taking the provider input rate and the output settings of the system
@@ -94,6 +96,18 @@ namespace DSPGraphAudio.Components
                 // Kick off playback. This will be done in a better way in the future.
                 block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.Parameters, PlayClipKernel.SampleProviders,
                     PlayClipKernel>(new PlayClipKernelUpdate(), m_Node);
+            }
+            */
+            
+            using (DSPCommandBlock block = m_Graph.CreateCommandBlock())
+            {
+                // Assign the sample provider to the slot of the node.
+                block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
+                    clipToPlay, m_Node, AudioKernel.SampleProviders.DefaultOutput);
+
+                // Kick off playback. This will be done in a better way in the future.
+                block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,
+                    AudioKernel>(new AudioKernelUpdate(), m_Node);
             }
         }
     }

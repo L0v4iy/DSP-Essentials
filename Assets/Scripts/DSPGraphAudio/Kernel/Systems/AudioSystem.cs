@@ -73,20 +73,6 @@ namespace DSPGraphAudio.Kernel.Systems
                     _freeNodes.Add(node);
                 }
             );
-            SetupGraph(channels);
-        }
-
-        protected void SetupGraph(int channels)
-        {
-            // All async interaction with the graph must be done through a DSPCommandBlock.
-            // Create it here and complete it once all commands are added.
-            DSPCommandBlock block = _graph.CreateCommandBlock();
-
-            // var node = createPlayClipNode(block, channels);
-            // connect(block, inNode: node, outNode: )
-
-            // We are done, fire off the command block atomically to the mixer thread.
-            block.Complete();
         }
 
         // Play a one shot (relative to the listener).
@@ -95,7 +81,7 @@ namespace DSPGraphAudio.Kernel.Systems
         // 3. Set up spatializer params.
         // 4. Set connection attenuation.
         // 5. Set lowpass filter.
-        public void playOneShot(AudioClip audioClip, float3 relativeTranslation)
+        public void PlayOneShot(AudioClip audioClip, float3 relativeTranslation)
         {
             DSPCommandBlock block = _graph.CreateCommandBlock();
 
@@ -174,7 +160,7 @@ namespace DSPGraphAudio.Kernel.Systems
 
                 return node;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 // No node is available. Create a new one.
                 //
@@ -197,8 +183,8 @@ namespace DSPGraphAudio.Kernel.Systems
                 //         └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘                            
                 //          clipToSpatializerMap   clipToLowpassMap                               
                 //                              
-                DSPNode node = CreatePlayClipNode(block, channels);
-                DSPNode spatializerNode = CreateSpatializerNode(block, channels);
+                DSPNode node = AudioKernelNodeUtils.CreatePlayClipNode(block, channels);
+                DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
                 _playingNodes.Add(node);
                 _clipToSpatializerMap.Add(node, spatializerNode);
 
@@ -207,7 +193,7 @@ namespace DSPGraphAudio.Kernel.Systems
                 _clipToConnectionMap.Add(node, nodeSpatializerConnection);
 
                 // Lowpass based on distance.
-                DSPNode lowpassFilterNode = CreateLowpassFilterNode(block, 1000, channels);
+                DSPNode lowpassFilterNode = AudioKernelNodeUtils.CreateLowpassFilterNode(block, 1000, channels);
                 _clipToLowpassMap.Add(node, lowpassFilterNode);
 
                 // Insert lowpass filter node between spatializer and root node.
@@ -225,69 +211,7 @@ namespace DSPGraphAudio.Kernel.Systems
             _connections.Add(connection);
             return connection;
         }
-
-        private DSPNode CreatePlayClipNode(DSPCommandBlock block, int channels)
-        {
-            DSPNode node =
-                block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
-
-            // Currently input and output ports are dynamic and added via this API to a node.
-            // This will change to a static definition of nodes in the future.
-            block.AddOutletPort(node, channels);
-
-            return node;
-        }
-
-        // Create a spatializer node.
-        //
-        // Setting parameters:
-        // block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>(
-        //                                                                                                    node,
-        //                                                                                                    SpatializerKernel.
-        //                                                                                                        Parameters.
-        //                                                                                                        Channel,
-        //                                                                                                    0
-        //                                                                                                   );
-        // block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>(
-        //                                                                                                    node,
-        //                                                                                                    SpatializerKernel.
-        //                                                                                                        Parameters.
-        //                                                                                                        Samples,
-        //                                                                                                    500
-        //                                                                                                   );
-        private DSPNode CreateSpatializerNode(DSPCommandBlock block, int channels)
-        {
-            DSPNode node = block
-                .CreateDSPNode<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>();
-
-            block.AddInletPort(node, channels);
-            block.AddOutletPort(node, channels);
-
-            return node;
-        }
-
-        // Create lowpass filter node.
-        //
-        // Setting parameters:
-        // block.
-        //     SetFloat<Filter.AudioKernel.Parameters, Filter.AudioKernel.Providers,
-        //         Filter.AudioKernel>(
-        //                         lowpassFilterNode,
-        //                         Filter.AudioKernel.Parameters.Cutoff,
-        //                         cutoffHz
-        //                        );
-        private DSPNode CreateLowpassFilterNode(DSPCommandBlock block, float cutoffHz, int channels)
-        {
-            DSPNode node = AudioKernelUtils.CreateNode(block, Filter.Type.Lowpass, channels);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders,
-                AudioKernel>(
-                node,
-                AudioKernel.Parameters.Cutoff,
-                cutoffHz
-            );
-            return node;
-        }
-
+        
         protected override void OnUpdate()
         {
             _graph.Update();

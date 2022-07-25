@@ -33,7 +33,7 @@ namespace Mono
                 _noiseFilter = block.CreateDSPNode<NoiseFilter.Parameters, NoiseFilter.Providers, NoiseFilter>();
                 block.AddOutletPort(_noiseFilter, 2);
 
-                _lowPass = AudioKernelUtils.CreateNode(block, Filter.Type.Lowpass, 2);
+                _lowPass = AudioKernelNodeUtils.CreateTypeNode(block, Filter.Type.Lowpass, 2);
 
                 block.Connect(_noiseFilter, 0, _lowPass, 0);
                 block.Connect(_lowPass, 0, _graph.RootDSP, 0);
