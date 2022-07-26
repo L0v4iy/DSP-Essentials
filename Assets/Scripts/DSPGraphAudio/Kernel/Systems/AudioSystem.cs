@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using Unity.Audio;
+using Unity.Burst;
 using Unity.Entities;
 using UnityEngine;
 
 namespace DSPGraphAudio.Kernel.Systems
 {
+    [BurstCompile]
     public partial class AudioSystem : SystemBase
     {
         private const float MinAttenuation = 0.1f;
@@ -17,12 +19,8 @@ namespace DSPGraphAudio.Kernel.Systems
         private const int SpeedOfSoundMPerS = 343;
 
         // Clip stopped event.
-        public enum ClipStoppedEvent
-        {
-            ManualStop,
-            ClipEnd,
-            Error
-        }
+        
+
 
         private DSPGraph _graph;
         private List<DSPNode> _freeNodes;
@@ -57,23 +55,12 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Add an event handler delegate to the graph for ClipStopped. So we are notified
             // of when a clip is stopped in the node and can handle the resources on the main thread.
-            _handlerID = _graph.AddNodeEventHandler<AudioSystem.ClipStoppedEvent>((node, evt) =>
+            _handlerID = _graph.AddNodeEventHandler<ClipStoppedEvent>((node, evt) =>
             {
                 Debug.Log("Received ClipStopped event on main thread, cleaning resources");
                 _playingNodes.Remove(node);
                 _freeNodes.Add(node);
             });
-
-            // All async interaction with the graph must be done through a DSPCommandBlock.
-            // Create it here and complete it once all commands are added.
-            DSPCommandBlock block = _graph.CreateCommandBlock();
-            
-            //DSPNode node = AudioKernelNodeUtils.CreateSpatializerNode(block, 2);
-            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
-            
-            block.AddOutletPort(node, 2);
-            block.Connect(node, 0, _graph.RootDSP, 0);
-            block.Complete();
         }
 
         /// <summary>
@@ -116,6 +103,9 @@ namespace DSPGraphAudio.Kernel.Systems
                 //                              
                 DSPNode node = AudioKernelNodeUtils.CreatePlayClipNode(block, channels);
                 _playingNodes.Add(node);
+
+                Connect(block, node, _graph.RootDSP);
+
                 /*DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
                 //_clipToSpatializerMap.Add(node, spatializerNode);
 
@@ -154,8 +144,8 @@ namespace DSPGraphAudio.Kernel.Systems
             using (DSPCommandBlock block = _graph.CreateCommandBlock())
             {
                 for (int i = 0; i < _connections.Count; i++) block.Disconnect(_connections[i]);
-                for (int i = 0; i < _freeNodes.Count; i++) block.ReleaseDSPNode(_freeNodes[i]);
                 for (int i = 0; i < _playingNodes.Count; i++) block.ReleaseDSPNode(_playingNodes[i]);
+                for (int i = 0; i < _freeNodes.Count; i++) block.ReleaseDSPNode(_freeNodes[i]);
             }
 
             _graph.RemoveNodeEventHandler(_handlerID);

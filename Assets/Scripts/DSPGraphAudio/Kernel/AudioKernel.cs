@@ -127,7 +127,7 @@ namespace DSPGraphAudio.Kernel
                 if (finished)
                 {
                     // Post an async event back to the main thread, telling the handler that the clip has stopped playing.
-                    context.PostEvent(new AudioSystem.ClipStoppedEvent());
+                    context.PostEvent(new ClipStoppedEvent(context, ClipStopReason.ClipEnd));
                     Playing = false;
                 }
             }

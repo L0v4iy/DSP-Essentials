@@ -19,9 +19,5 @@ namespace MonoComponents
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()
                 .PlayOneShot(clip, transform.position);
         }
-
-        private void Update()
-        {
-        }
     }
 }

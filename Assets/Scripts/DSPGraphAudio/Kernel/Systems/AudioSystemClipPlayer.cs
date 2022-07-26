@@ -1,4 +1,5 @@
-﻿using DSPGraphAudio.DSP;
+﻿using System;
+using DSPGraphAudio.DSP;
 using Unity.Audio;
 using Unity.Mathematics;
 using UnityEngine;
@@ -7,7 +8,7 @@ namespace DSPGraphAudio.Kernel.Systems
 {
     public partial class AudioSystem
     {
-         /// <summary>
+        /// <summary>
         /// Play a one shot (relative to the listener).
         /// 1. Get free node.
         /// 2. Set up <param name="audioClip"></param> params.
@@ -83,31 +84,27 @@ namespace DSPGraphAudio.Kernel.Systems
             block.Complete();
         }
 
-         public void PlayClipInHead(AudioClip audioClip)
-         {
-             using (DSPCommandBlock block = _graph.CreateCommandBlock())
-             {
-                 DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
-                 // Decide on playback rate here by taking the provider input rate and the output settings of the system
-                 // Decide on playback rate here by taking the provider input rate and the output settings of the system
-                 float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-                 block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(node,
-                     AudioKernel.Parameters.Rate, resampleRate);
+        public void PlayClipInHead(AudioClip audioClip)
+        {
+            if (audioClip == null)
+                throw new ArgumentNullException(nameof(audioClip));
 
-                 // Assign the sample provider to the slot of the node.
-                 block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
-                     audioClip, node, AudioKernel.SampleProviders.DefaultSlot);
+            using (DSPCommandBlock block = _graph.CreateCommandBlock())
+            {
+                DSPNode node = GetFreeNode(block, 2);
+                // Decide on playback rate here by taking the provider input rate and the output settings of the system
+                float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
+                block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(node,
+                    AudioKernel.Parameters.Rate, resampleRate);
 
-                 // Kick off playback. This will be done in a better way in the future.
-                 block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,
-                     AudioKernel>(new AudioKernelUpdate(), node);
-             }
-             /*DSPCommandBlock block = _graph.CreateCommandBlock();
-             DSPNode node = GetFreeNode(block, 2);
-             block.AddOutletPort(node, 2);
-             block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-                 (audioClip, node, AudioKernel.SampleProviders.DefaultSlot);
-             Debug.Log($"Play in head {audioClip.name}");*/
-         }
+                // Assign the sample provider to the slot of the node.
+                block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
+                    audioClip, node, AudioKernel.SampleProviders.DefaultSlot);
+
+                // Kick off playback. This will be done in a better way in the future.
+                block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,
+                    AudioKernel>(new AudioKernelUpdate(), node);
+            }
+        }
     }
 }
