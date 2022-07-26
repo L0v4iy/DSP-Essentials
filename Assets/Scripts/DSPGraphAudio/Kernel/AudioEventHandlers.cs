@@ -1,6 +1,6 @@
 ﻿using Unity.Audio;
 
-namespace DSPGraphAudio.Kernel.Systems
+namespace DSPGraphAudio.Kernel
 {
     public enum ClipStopReason
     {

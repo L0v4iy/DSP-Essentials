@@ -93,33 +93,32 @@ namespace DSPGraphAudio.Kernel.Systems
                 //         ▼                                                                      
                 // ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
                 // │              │     │              │     │              │     │              │
-                // │   PlayClip   │────▶│ Spatializer  │────▶│   Lowpass    │────▶│     Root    │
+                // │   Primary    │────▶│  Spatializer │────▶│   Lowpass    │────▶│     Root     │
                 // │              │     │              │     │              │     │              │
                 // └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
                 //         │                    ▲                    ▲                            
                 //                              │                                                 
                 //         └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘                            
                 //          clipToSpatializerMap   clipToLowpassMap                               
-                //                              
-                DSPNode node = AudioKernelNodeUtils.CreatePlayClipNode(block, channels);
+                //
+                
+                DSPNode node = AudioKernelNodeUtils.CreatePrimaryNode(block, channels);
+
+                Connect(block, node);
                 _playingNodes.Add(node);
-
-                Connect(block, node, _graph.RootDSP);
-
-                /*DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
-                //_clipToSpatializerMap.Add(node, spatializerNode);
-
-                // Used for directional sound.
-                DSPConnection nodeSpatializerConnection = Connect(block, node, spatializerNode);
-                _clipToConnectionMap.Add(node, nodeSpatializerConnection);
-
-                // Lowpass based on distance.
+                
+                // Used for directional sound
+                DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
+                _clipToSpatializerMap.Add(node, spatializerNode);
+                
+                // Lowpass based on distance
                 DSPNode lowpassFilterNode = AudioKernelNodeUtils.CreateLowpassFilterNode(block, 1000, channels);
                 _clipToLowpassMap.Add(node, lowpassFilterNode);
-
-                // Insert lowpass filter node between spatializer and root node.
+               
+                
                 Connect(block, spatializerNode, lowpassFilterNode);
-                Connect(block, lowpassFilterNode, _graph.RootDSP);*/
+                _clipToConnectionMap.Add(node, Connect(block, node, spatializerNode));
+                Connect(block, lowpassFilterNode, _graph.RootDSP);
 
                 return node;
             }

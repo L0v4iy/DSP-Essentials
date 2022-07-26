@@ -70,13 +70,12 @@ namespace DSPGraphAudio.DSP
         }
     }
     
-    
     internal struct SpatializerKernelUpdate:
         IAudioKernelUpdate<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>
     {
         public void Update(ref SpatializerKernel audioKernel)
         {
-            Debug.Log("Start spatalizer");
+            Debug.Log("Start spatializer");
         }
     }
 

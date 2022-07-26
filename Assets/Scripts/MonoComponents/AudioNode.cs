@@ -17,7 +17,7 @@ namespace MonoComponents
             }
 
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()
-                .PlayOneShot(clip, transform.position);
+                .PlayClipInWorld(clip, transform.position);
         }
     }
 }

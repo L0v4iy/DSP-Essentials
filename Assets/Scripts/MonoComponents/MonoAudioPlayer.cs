@@ -1,6 +1,4 @@
-﻿using DSPGraphAudio.Kernel;
-using DSPGraphAudio.Kernel.Systems;
-using Unity.Audio;
+﻿using DSPGraphAudio.Kernel.Systems;
 using Unity.Entities;
 using UnityEngine;
 
@@ -15,6 +13,14 @@ namespace MonoComponents
         {
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>().PlayClipInHead(clipToPlay);
         }
-        
+
+        public void PlaySpatialized()
+        {
+            Vector3 relativeVector = Camera.main.transform.position - transform.position;
+            Debug.Log($"relativeVector : {relativeVector}");
+            
+            World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()
+                .PlayClipInWorld(clipToPlay, relativeVector);
+        }
     }
 }

@@ -5,6 +5,14 @@ namespace DSPGraphAudio.Kernel
 {
     public static class AudioKernelNodeUtils
     {
+        public static DSPNode CreatePrimaryNode(DSPCommandBlock block, int channels)
+        {
+            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
+            block.AddOutletPort(node, channels);
+
+            return node;
+        }
+
         public static DSPNode CreateTypeNode(DSPCommandBlock block, Filter.Type type, int channels)
         {
             DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
@@ -17,19 +25,7 @@ namespace DSPGraphAudio.Kernel
             );
             return node;
         }
-        
-        public static DSPNode CreatePlayClipNode(DSPCommandBlock block, int channels)
-        {
-            DSPNode node =
-                block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
 
-            // Currently input and output ports are dynamic and added via this API to a node.
-            // This will change to a static definition of nodes in the future.
-            block.AddOutletPort(node, channels);
-
-            return node;
-        }
-        
         // Create a spatializer node.
         //
         // Setting parameters:
