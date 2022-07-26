@@ -25,17 +25,15 @@ namespace DSPGraphAudio.Kernel.Systems
             DSPCommandBlock block = _graph.CreateCommandBlock();
 
             DSPNode clipNode = GetFreeNode(block, _graph.OutputChannelCount);
-
-            // Decide on playback rate here by taking the provider input rate and the output settings of the system
+            
             float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
             block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
                 SampleProviderDSP.AudioKernel>(
                 clipNode,
-                SampleProviderDSP.Parameters.SamplePosition,
+                SampleProviderDSP.Parameters.ResampleCoef,
                 resampleRate
             );
-
-            // Assign the sample provider to the slot of the node.
+            
             block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
                 SampleProviderDSP.AudioKernel>(
                 audioClip,
@@ -45,6 +43,7 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Set spatializer node parameters.
             _clipToSpatializerMap.TryGetValue(clipNode, out DSPNode spatializerNode);
+            
             // Set delay channel based on relativeTranslation. Is it coming from left or right?
             SpatializerFilterDSP.Channels channel = relativeTranslation.x < 0
                 ? SpatializerFilterDSP.Channels.Left
@@ -71,13 +70,14 @@ namespace DSPGraphAudio.Kernel.Systems
             block.SetAttenuation(connection, attenuation);
 
             // Set lowpass based on distance.
-            _clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
+            /*_clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
             block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
                 EqualizerFilterDSP.AudioKernel>
             (lowpassFilterNode,
                 EqualizerFilterDSP.Parameters.Cutoff,
                 math.clamp(1 / closestInside10mCircle * sampleRatePerChannel, 1000, sampleRatePerChannel)
-            );
+            );*/
+            
             // Kick off playback.
             block.UpdateAudioKernel<SampleProviderDSP.KernelUpdate, SampleProviderDSP.Parameters,
                 SampleProviderDSP.SampleProviders,
@@ -98,7 +98,7 @@ namespace DSPGraphAudio.Kernel.Systems
                 float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
                 block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
                     SampleProviderDSP.AudioKernel>(node,
-                    SampleProviderDSP.Parameters.SamplePosition, resampleRate);
+                    SampleProviderDSP.Parameters.ResampleCoef, resampleRate);
 
                 // Assign the sample provider to the slot of the node.
                 block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,

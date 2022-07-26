@@ -16,7 +16,8 @@ namespace MonoComponents
 
         public void PlaySpatialized()
         {
-            Vector3 relativeVector = Camera.main.transform.position - transform.position;
+            // U're at center
+            Vector3 relativeVector = transform.position;
             Debug.Log($"relativeVector : {relativeVector}");
             
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()

@@ -109,22 +109,23 @@ namespace DSPGraphAudio.Kernel.Systems
                 _clipToSpatializerMap.Add(node, spatializerNode);
                 
                 // Lowpass based on distance
-                /*DSPNode lowpassFilterNode = EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
+                DSPNode lowpassFilterNode = EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
+                _clipToLowpassMap.Add(node, lowpassFilterNode);
+
                 block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
                     EqualizerFilterDSP.AudioKernel>(
-                    node,
+                    lowpassFilterNode,
                     EqualizerFilterDSP.Parameters.Cutoff,
                     1000
                 );
-                _clipToLowpassMap.Add(node, lowpassFilterNode);
 
 
                 _clipToConnectionMap.Add(node, Connect(block, node, spatializerNode));
                 Connect(block, spatializerNode, lowpassFilterNode);
-                Connect(block, lowpassFilterNode, _graph.RootDSP);*/
+                Connect(block, lowpassFilterNode, _graph.RootDSP);
 
-                Connect(block, node, spatializerNode);
-                Connect(block, spatializerNode, _graph.RootDSP);
+                /*Connect(block, node, spatializerNode);
+                Connect(block, spatializerNode, _graph.RootDSP);*/
 
                 return node;
             }

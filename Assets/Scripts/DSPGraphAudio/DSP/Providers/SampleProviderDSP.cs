@@ -12,7 +12,7 @@ namespace DSPGraphAudio.DSP.Providers
     {
         public enum Parameters
         {
-            SamplePosition
+            ResampleCoef
         }
 
         public enum SampleProviders
@@ -55,7 +55,7 @@ namespace DSPGraphAudio.DSP.Providers
                         _resampleBuffer,
                         buffer,
                         context.Parameters,
-                        Parameters.SamplePosition
+                        Parameters.ResampleCoef
                     );
 
                     if (finished)
