@@ -7,20 +7,16 @@ using UnityEngine;
 
 namespace DSPGraphAudio.Kernel.Systems
 {
-    [BurstCompile]
+    [BurstCompile(CompileSynchronously = true)]
     public partial class AudioSystem : SystemBase
     {
         private const float MinAttenuation = 0.1f;
 
         private const float MaxAttenuation = 1f;
 
-        // Ears are 2 metres apart (-1 - +1).
+        // Ears are 0.5 metres apart (-0.25 - +0.25).
         private const float MidToEarDistance = 0.25f;
         private const int SpeedOfSoundMPerS = 343;
-
-        // Clip stopped event.
-        
-
 
         private DSPGraph _graph;
         private List<DSPNode> _freeNodes;
@@ -102,7 +98,7 @@ namespace DSPGraphAudio.Kernel.Systems
                 //          clipToSpatializerMap   clipToLowpassMap                               
                 //
                 
-                DSPNode node = AudioKernelNodeUtils.CreatePrimaryNode(block, channels);
+                DSPNode node = SampleProviderDSP.CreateNode(block, channels);
 
                 Connect(block, node);
                 _playingNodes.Add(node);
@@ -118,7 +114,8 @@ namespace DSPGraphAudio.Kernel.Systems
                 
                 Connect(block, spatializerNode, lowpassFilterNode);
                 _clipToConnectionMap.Add(node, Connect(block, node, spatializerNode));
-                Connect(block, lowpassFilterNode, _graph.RootDSP);
+
+                DSPConnection endpointConnection = Connect(block, lowpassFilterNode, _graph.RootDSP);
 
                 return node;
             }

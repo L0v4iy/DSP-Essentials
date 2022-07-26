@@ -11,10 +11,10 @@ namespace DSPGraphAudio.Kernel
 
     public struct ClipStoppedEvent
     {
-        public readonly ExecuteContext<AudioKernel.Parameters, AudioKernel.SampleProviders> Context;
+        public readonly ExecuteContext<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders> Context;
         public readonly ClipStopReason Reason;
 
-        public ClipStoppedEvent(ExecuteContext<AudioKernel.Parameters, AudioKernel.SampleProviders> context,
+        public ClipStoppedEvent(ExecuteContext<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders> context,
             ClipStopReason reason)
         {
             Context = context;

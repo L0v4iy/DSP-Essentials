@@ -63,8 +63,8 @@ namespace MonoComponents
                 float newCutoff = GUI.HorizontalSlider(new Rect(100, 100, 300, 30), cutoff, 10.0f, 22000.0f);
                 if (Math.Abs(newCutoff - cutoff) > 0.01f)
                 {
-                    block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-                        (_lowPass, AudioKernel.Parameters.Cutoff, newCutoff);
+                    block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>
+                        (_lowPass, FilterKernel.Parameters.Cutoff, newCutoff);
                     cutoff = newCutoff;
                 }
 
@@ -72,8 +72,8 @@ namespace MonoComponents
                 float newq = GUI.HorizontalSlider(new Rect(100, 190, 300, 30), q, 1.0f, 100.0f);
                 if (Math.Abs(newq - q) > 0.01f)
                 {
-                    block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-                        (_lowPass, AudioKernel.Parameters.Q, newq);
+                    block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>
+                        (_lowPass, FilterKernel.Parameters.Q, newq);
                     q = newq;
                 }
 
@@ -81,8 +81,8 @@ namespace MonoComponents
                 float newGain = GUI.HorizontalSlider(new Rect(100, 280, 300, 30), gain, -80.0f, 0.0f);
                 if (Math.Abs(newGain - gain) > 0.01f)
                 {
-                    block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-                        (_lowPass, AudioKernel.Parameters.GainInDBs, newGain);
+                    block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>
+                        (_lowPass, FilterKernel.Parameters.GainInDBs, newGain);
                     gain = newGain;
                 }
             }

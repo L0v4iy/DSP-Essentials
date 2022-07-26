@@ -26,17 +26,19 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Decide on playback rate here by taking the provider input rate and the output settings of the system
             float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
+            block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
+                SampleProviderDSP.AudioKernel>(
                 clipNode,
-                AudioKernel.Parameters.Rate,
+                SampleProviderDSP.Parameters.SamplePosition,
                 resampleRate
             );
 
             // Assign the sample provider to the slot of the node.
-            block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
+            block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
+                SampleProviderDSP.AudioKernel>(
                 audioClip,
                 clipNode,
-                AudioKernel.SampleProviders.DefaultSlot
+                SampleProviderDSP.SampleProviders.DefaultOutput
             );
 
             // Set spatializer node parameters.
@@ -52,17 +54,12 @@ namespace DSPGraphAudio.Kernel.Systems
             int sampleRatePerChannel = _graph.SampleRate / _graph.OutputChannelCount;
             float samples = diff * sampleRatePerChannel / SpeedOfSoundMPerS;
 
-            block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>(
-                spatializerNode,
-                SpatializerKernel.Parameters.Channel,
-                (float)
-                channel
-            );
-            block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>(
-                spatializerNode,
-                SpatializerKernel.Parameters.SampleOffset,
-                samples
-            );
+            block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>
+                (spatializerNode, SpatializerKernel.Parameters.Channel, (float)channel);
+
+            block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>
+                (spatializerNode, SpatializerKernel.Parameters.SampleOffset, samples);
+
             // Set attenuation based on distance.
             _clipToConnectionMap.TryGetValue(clipNode, out DSPConnection connection);
             float closestDistance = math.min(distanceA, distanceB);
@@ -73,10 +70,10 @@ namespace DSPGraphAudio.Kernel.Systems
 
             // Set lowpass based on distance.
             _clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders,
-                AudioKernel>(
+            block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders,
+                FilterKernel>(
                 lowpassFilterNode,
-                AudioKernel.Parameters.Cutoff,
+                FilterKernel.Parameters.Cutoff,
                 math.clamp(
                     1 / closestInside10mCircle * sampleRatePerChannel,
                     1000,
@@ -84,13 +81,10 @@ namespace DSPGraphAudio.Kernel.Systems
                 )
             );
             // Kick off playback.
-            block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,
-                AudioKernel>(
-                new
-                    AudioKernelUpdate(),
-                clipNode
-            );
-            
+            block.UpdateAudioKernel<SampleProviderDSP.KernelUpdate, SampleProviderDSP.Parameters,
+                SampleProviderDSP.SampleProviders,
+                SampleProviderDSP.AudioKernel>(new SampleProviderDSP.KernelUpdate(), clipNode);
+
             block.Complete();
         }
 
@@ -104,16 +98,16 @@ namespace DSPGraphAudio.Kernel.Systems
                 DSPNode node = GetFreeNode(block, 2);
                 // Decide on playback rate here by taking the provider input rate and the output settings of the system
                 float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-                block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(node,
-                    AudioKernel.Parameters.Rate, resampleRate);
+                block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders, SampleProviderDSP.AudioKernel>(node,
+                    SampleProviderDSP.Parameters.SamplePosition, resampleRate);
 
                 // Assign the sample provider to the slot of the node.
-                block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
-                    audioClip, node, AudioKernel.SampleProviders.DefaultSlot);
+                block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders, SampleProviderDSP.AudioKernel>(
+                    audioClip, node, SampleProviderDSP.SampleProviders.DefaultOutput);
 
                 // Kick off playback. This will be done in a better way in the future.
-                block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders,
-                    AudioKernel>(new AudioKernelUpdate(), node);
+                block.UpdateAudioKernel<SampleProviderDSP.KernelUpdate, SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
+                    SampleProviderDSP.AudioKernel>(new SampleProviderDSP.KernelUpdate(), node);
             }
         }
     }

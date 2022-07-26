@@ -1,26 +1,20 @@
-﻿using DSPGraphAudio.DSP;
+﻿using System;
+using DSPGraphAudio.DSP;
 using Unity.Audio;
 
 namespace DSPGraphAudio.Kernel
 {
+    [Obsolete]
     public static class AudioKernelNodeUtils
     {
-        public static DSPNode CreatePrimaryNode(DSPCommandBlock block, int channels)
-        {
-            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
-            block.AddOutletPort(node, channels);
-
-            return node;
-        }
-
         public static DSPNode CreateTypeNode(DSPCommandBlock block, Filter.Type type, int channels)
         {
-            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
+            DSPNode node = block.CreateDSPNode<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>();
             block.AddInletPort(node, channels);
             block.AddOutletPort(node, channels);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
+            block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>(
                 node,
-                AudioKernel.Parameters.FilterType,
+                FilterKernel.Parameters.FilterType,
                 (float)type
             );
             return node;
@@ -67,10 +61,10 @@ namespace DSPGraphAudio.Kernel
         public static DSPNode CreateLowpassFilterNode(DSPCommandBlock block, float cutoffHz, int channels)
         {
             DSPNode node = CreateTypeNode(block, Filter.Type.Lowpass, channels);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders,
-                AudioKernel>(
+            block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders,
+                FilterKernel>(
                 node,
-                AudioKernel.Parameters.Cutoff,
+                FilterKernel.Parameters.Cutoff,
                 cutoffHz
             );
             return node;

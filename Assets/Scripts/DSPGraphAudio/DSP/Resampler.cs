@@ -18,7 +18,7 @@ namespace DSPGraphAudio.Kernel
             NativeArray<float> input,
             SampleBuffer outputBuffer,
             ParameterData<T> parameterData,
-            T rateParam)
+            T positionParam)
             where T : unmanaged, Enum
         {
             bool finishedSampleProvider = false;
@@ -27,7 +27,7 @@ namespace DSPGraphAudio.Kernel
             NativeArray<float> outputR = outputBuffer.GetBuffer(1);
             for (int i = 0; i < outputL.Length; i++)
             {
-                Position += parameterData.GetFloat(rateParam, i);
+                Position += parameterData.GetFloat(positionParam, i);
 
                 int length = input.Length / 2;
 
