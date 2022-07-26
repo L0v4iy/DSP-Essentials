@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using DSPGraphAudio.DSP.Filters;
+using DSPGraphAudio.DSP.Providers;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Entities;
@@ -99,23 +101,30 @@ namespace DSPGraphAudio.Kernel.Systems
                 //
                 
                 DSPNode node = SampleProviderDSP.CreateNode(block, channels);
-
-                Connect(block, node);
                 _playingNodes.Add(node);
-                
+                //Connect(block, node);
+
                 // Used for directional sound
-                DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
+                DSPNode spatializerNode = SpatializerFilterDSP.CreateNode(block, channels);
                 _clipToSpatializerMap.Add(node, spatializerNode);
                 
                 // Lowpass based on distance
-                DSPNode lowpassFilterNode = AudioKernelNodeUtils.CreateLowpassFilterNode(block, 1000, channels);
+                /*DSPNode lowpassFilterNode = EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
+                block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
+                    EqualizerFilterDSP.AudioKernel>(
+                    node,
+                    EqualizerFilterDSP.Parameters.Cutoff,
+                    1000
+                );
                 _clipToLowpassMap.Add(node, lowpassFilterNode);
-               
-                
-                Connect(block, spatializerNode, lowpassFilterNode);
-                _clipToConnectionMap.Add(node, Connect(block, node, spatializerNode));
 
-                DSPConnection endpointConnection = Connect(block, lowpassFilterNode, _graph.RootDSP);
+
+                _clipToConnectionMap.Add(node, Connect(block, node, spatializerNode));
+                Connect(block, spatializerNode, lowpassFilterNode);
+                Connect(block, lowpassFilterNode, _graph.RootDSP);*/
+
+                Connect(block, node, spatializerNode);
+                Connect(block, spatializerNode, _graph.RootDSP);
 
                 return node;
             }

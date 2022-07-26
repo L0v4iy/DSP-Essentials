@@ -1,10 +1,13 @@
+using System;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Random = Unity.Mathematics.Random;
 
+
 namespace DSPGraphAudio.DSP
 {
+    [Obsolete]
     [BurstCompile(CompileSynchronously = true)]
     public struct NoiseFilter : IAudioKernel<NoiseFilter.Parameters, NoiseFilter.Providers>
     {

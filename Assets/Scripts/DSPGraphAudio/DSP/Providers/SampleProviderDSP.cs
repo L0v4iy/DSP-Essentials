@@ -1,10 +1,13 @@
-﻿using Unity.Audio;
+﻿using DSPGraphAudio.Kernel;
+using Unity.Audio;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
-namespace DSPGraphAudio.Kernel
+namespace DSPGraphAudio.DSP.Providers
 {
+
     public class SampleProviderDSP
     {
         public enum Parameters
@@ -17,19 +20,20 @@ namespace DSPGraphAudio.Kernel
             DefaultOutput
         }
         
+        [BurstCompile(CompileSynchronously = true)]
         public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
-            public Resampler Resampler;
+            private Resampler _resampler;
 
             [NativeDisableContainerSafetyRestriction]
-            public NativeArray<float> ResampleBuffer;
+            private NativeArray<float> _resampleBuffer;
 
             public bool Playing;
             
             public void Initialize()
             {
-                ResampleBuffer = new NativeArray<float>(1025 * 2, Allocator.AudioKernel);
-                Resampler.Position = (double)ResampleBuffer.Length / 2;
+                _resampleBuffer = new NativeArray<float>(1025 * 2, Allocator.AudioKernel);
+                _resampler.Position = (double)_resampleBuffer.Length / 2;
             }
 
             public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)
@@ -46,9 +50,9 @@ namespace DSPGraphAudio.Kernel
 
                     // We pass the provider to the resampler. If the resampler finishes streaming all the samples, it returns
                     // true.
-                    bool finished = Resampler.ResampleLerpRead(
+                    bool finished = _resampler.ResampleLerpRead(
                         provider,
-                        ResampleBuffer,
+                        _resampleBuffer,
                         buffer,
                         context.Parameters,
                         Parameters.SamplePosition
@@ -65,8 +69,8 @@ namespace DSPGraphAudio.Kernel
 
             public void Dispose()
             {
-                if (ResampleBuffer.IsCreated)
-                    ResampleBuffer.Dispose();
+                if (_resampleBuffer.IsCreated)
+                    _resampleBuffer.Dispose();
             }
         }
 

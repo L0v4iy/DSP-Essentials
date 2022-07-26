@@ -1,5 +1,6 @@
 using System;
 using DSPGraphAudio.DSP;
+using DSPGraphAudio.DSP.Filters;
 using DSPGraphAudio.Kernel;
 using Unity.Audio;
 using UnityEngine;
@@ -33,7 +34,7 @@ namespace MonoComponents
                 _noiseFilter = block.CreateDSPNode<NoiseFilter.Parameters, NoiseFilter.Providers, NoiseFilter>();
                 block.AddOutletPort(_noiseFilter, 2);
 
-                _lowPass = AudioKernelNodeUtils.CreateTypeNode(block, Filter.Type.Lowpass, 2);
+                _lowPass = EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, 2);
 
                 block.Connect(_noiseFilter, 0, _lowPass, 0);
                 block.Connect(_lowPass, 0, _graph.RootDSP, 0);
@@ -63,8 +64,8 @@ namespace MonoComponents
                 float newCutoff = GUI.HorizontalSlider(new Rect(100, 100, 300, 30), cutoff, 10.0f, 22000.0f);
                 if (Math.Abs(newCutoff - cutoff) > 0.01f)
                 {
-                    block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>
-                        (_lowPass, FilterKernel.Parameters.Cutoff, newCutoff);
+                    block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders, EqualizerFilterDSP.AudioKernel>
+                        (_lowPass, EqualizerFilterDSP.Parameters.Cutoff, newCutoff);
                     cutoff = newCutoff;
                 }
 
@@ -72,8 +73,8 @@ namespace MonoComponents
                 float newq = GUI.HorizontalSlider(new Rect(100, 190, 300, 30), q, 1.0f, 100.0f);
                 if (Math.Abs(newq - q) > 0.01f)
                 {
-                    block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>
-                        (_lowPass, FilterKernel.Parameters.Q, newq);
+                    block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders, EqualizerFilterDSP.AudioKernel>
+                        (_lowPass, EqualizerFilterDSP.Parameters.Q, newq);
                     q = newq;
                 }
 
@@ -81,8 +82,8 @@ namespace MonoComponents
                 float newGain = GUI.HorizontalSlider(new Rect(100, 280, 300, 30), gain, -80.0f, 0.0f);
                 if (Math.Abs(newGain - gain) > 0.01f)
                 {
-                    block.SetFloat<FilterKernel.Parameters, FilterKernel.SampleProviders, FilterKernel>
-                        (_lowPass, FilterKernel.Parameters.GainInDBs, newGain);
+                    block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders, EqualizerFilterDSP.AudioKernel>
+                        (_lowPass, EqualizerFilterDSP.Parameters.GainInDBs, newGain);
                     gain = newGain;
                 }
             }

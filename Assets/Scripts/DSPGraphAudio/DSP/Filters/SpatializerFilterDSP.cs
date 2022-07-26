@@ -1,17 +1,16 @@
-using Unity.Audio;
+﻿using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace DSPGraphAudio.DSP
+namespace DSPGraphAudio.DSP.Filters
 {
-    // The kernel for a spatializer node.
-    // 
-    [BurstCompile(CompileSynchronously = true)]
-    internal struct SpatializerKernel : IAudioKernel<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders>
+    public struct SpatializerFilterDSP
     {
+        private const int MaxDelay = 1025;
+
         public enum Channels
         {
             Left = 1,
@@ -29,53 +28,63 @@ namespace DSPGraphAudio.DSP
             DefaultSlot
         }
 
-        private const int MaxDelay = 1025;
-
-        [NativeDisableContainerSafetyRestriction]
-        private NativeArray<float> _delayBuffer;
-
-        private Spatializer _spatializer;
-
-        public void Initialize()
+        [BurstCompile(CompileSynchronously = true)]
+        public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
-            // During an initialization phase, we have access to a resource context which we can
-            // do buffer allocations with safely in the job.
-            _delayBuffer = new NativeArray<float>(MaxDelay * 2, Allocator.AudioKernel);
+            [NativeDisableContainerSafetyRestriction]
+            private NativeArray<float> _delayBuffer;
 
-            // Add a Spatializer that does the work.
-            _spatializer = new Spatializer();
+            private Spatializer _spatializer;
+
+            public void Initialize()
+            {
+                _delayBuffer = new NativeArray<float>(MaxDelay * 2, Allocator.AudioKernel);
+
+                // Add a Spatializer that does the work.
+                _spatializer = new Spatializer();
+            }
+
+            public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)
+            {
+                SampleBuffer inputBuffer = context.Inputs.GetSampleBuffer(0);
+                SampleBuffer outputBuffer = context.Outputs.GetSampleBuffer(0);
+
+                float delayInSamplesFloat = context.Parameters.GetFloat(Parameters.SampleOffset, 0);
+                int delayInSamples = math.min((int)delayInSamplesFloat, MaxDelay);
+                _spatializer.DelayedChannel = (int)context.Parameters.GetFloat(Parameters.Channel, 0);
+                _spatializer.DelayInSamples = delayInSamples;
+
+                _spatializer.Delay(
+                    inputBuffer,
+                    outputBuffer,
+                    _delayBuffer
+                );
+            }
+
+            public void Dispose()
+            {
+                if (_delayBuffer.IsCreated)
+                    _delayBuffer.Dispose();
+            }
         }
 
-        public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)
+        public struct KernelUpdate : IAudioKernelUpdate<Parameters, SampleProviders, AudioKernel>
         {
-            // Input and output buffers that we are going to read and write.
-            SampleBuffer inputBuffer = context.Inputs.GetSampleBuffer(0);
-            SampleBuffer outputBuffer = context.Outputs.GetSampleBuffer(0);
-
-            float delayInSamplesFloat = context.Parameters.GetFloat(Parameters.SampleOffset, 0);
-            int delayInSamples = math.min((int)delayInSamplesFloat, MaxDelay);
-            _spatializer.DelayedChannel = (int)context.Parameters.GetFloat(Parameters.Channel, 0);
-            _spatializer.DelayInSamples = delayInSamples;
-
-            _spatializer.Delay(
-                inputBuffer,
-                outputBuffer,
-                _delayBuffer
-            );
+            public void Update(ref AudioKernel audioKernel)
+            {
+                Debug.Log("Start spatializer");
+            }
         }
 
-        public void Dispose()
+        public static DSPNode CreateNode(DSPCommandBlock block, int channels)
         {
-            if (_delayBuffer.IsCreated) _delayBuffer.Dispose();
-        }
-    }
-    
-    internal struct SpatializerKernelUpdate:
-        IAudioKernelUpdate<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>
-    {
-        public void Update(ref SpatializerKernel audioKernel)
-        {
-            Debug.Log("Start spatializer");
+            DSPNode node = block
+                .CreateDSPNode<Parameters, SampleProviders, AudioKernel>();
+
+            block.AddInletPort(node, channels);
+            block.AddOutletPort(node, channels);
+
+            return node;
         }
     }
 
@@ -83,7 +92,7 @@ namespace DSPGraphAudio.DSP
     // from the other side.
     // Always is stereo.
     [BurstCompile(CompileSynchronously = true)]
-    public struct Spatializer
+    internal struct Spatializer
     {
         public int DelayedChannel;
         public int DelayInSamples;
