@@ -99,6 +99,7 @@ namespace DSPGraphAudio.Kernel
 
                 _channels[c] = new Channel { Ch1 = ch1, Ch2 = ch2 };
             }
+            
         }*/
         
         public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)

@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using DSPGraphAudio.DSP;
 using Unity.Audio;
 using Unity.Entities;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace DSPGraphAudio.Kernel.Systems
@@ -54,102 +52,27 @@ namespace DSPGraphAudio.Kernel.Systems
 
             _graph = DSPGraph.Create(format, channels, bufferLength, sampleRate);
 
-            if (!_graph.Valid)
-            {
-                Debug.Log("DSPGraph not valid!");
-                return;
-            }
-
             DefaultDSPGraphDriver driver = new DefaultDSPGraphDriver { Graph = _graph };
             _output = driver.AttachToDefaultOutput();
 
             // Add an event handler delegate to the graph for ClipStopped. So we are notified
             // of when a clip is stopped in the node and can handle the resources on the main thread.
-            _handlerID = _graph.AddNodeEventHandler<ClipStoppedEvent>(
-                (node, evt) =>
-                {
-                    // Debug.Log(
-                    //           "Received ClipStopped event on main thread, cleaning resources"
-                    //          );
-                    _playingNodes.Remove(node);
-                    _freeNodes.Add(node);
-                }
-            );
-        }
-        
-        /// <summary>
-        /// Play a one shot (relative to the listener).
-        /// 1. Get free node.
-        /// 2. Set up <param name="audioClip"></param> params.
-        /// 3. Set up spatializer params.
-        /// 4. Set connection attenuation.
-        /// 5. Set lowpass filter.
-        /// </summary>
-        /// <param name="audioClip"></param>
-        /// <param name="relativeTranslation"></param>
-        public void PlayOneShot(AudioClip audioClip, float3 relativeTranslation)
-        {
+            _handlerID = _graph.AddNodeEventHandler<AudioSystem.ClipStoppedEvent>((node, evt) =>
+            {
+                Debug.Log("Received ClipStopped event on main thread, cleaning resources");
+                _playingNodes.Remove(node);
+                _freeNodes.Add(node);
+            });
+
+            // All async interaction with the graph must be done through a DSPCommandBlock.
+            // Create it here and complete it once all commands are added.
             DSPCommandBlock block = _graph.CreateCommandBlock();
-
-            DSPNode clipNode = GetFreeNode(block, _graph.OutputChannelCount);
-
-            // Decide on playback rate here by taking the provider input rate and the output settings of the system
-            /*float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-            (clipNode, AudioKernel.Parameters.Rate, resampleRate
-            );*/
-
-            // Assign the sample provider to the slot of the node.
-            block.SetSampleProvider<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-            (audioClip, clipNode, AudioKernel.SampleProviders.DefaultSlot
-            );
-
-            // Set spatializer node parameters.
-            _clipToSpatializerMap.TryGetValue(clipNode, out DSPNode spatializerNode);
-            // Set delay channel based on relativeTranslation. Is it coming from left or right?
-            SpatializerKernel.Channels channel = relativeTranslation.x < 0
-                ? SpatializerKernel.Channels.Left
-                : SpatializerKernel.Channels.Right;
-            // Set delay samples based on relativeTranslation. How much from the left/right is it coming?
-            float distanceA = math.length(relativeTranslation + new float3(-MidToEarDistance, 0, 0));
-            float distanceB = math.length(relativeTranslation + new float3(+MidToEarDistance, 0, 0));
-            float diff = math.abs(distanceA - distanceB);
-            int sampleRatePerChannel = _graph.SampleRate / _graph.OutputChannelCount;
-            float samples = diff * sampleRatePerChannel / SpeedOfSoundMPerS;
-
-            block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>(
-                spatializerNode,
-                SpatializerKernel.Parameters.Channel,
-                (float)
-                channel
-            );
-            block.SetFloat<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders, SpatializerKernel>(
-                spatializerNode,
-                SpatializerKernel.Parameters.Samples,
-                samples
-            );
-            // Set attenuation based on distance.
-            _clipToConnectionMap.TryGetValue(clipNode, out DSPConnection connection);
-            float closestDistance = math.min(distanceA, distanceB);
-            // Anything inside 10m has no attenuation.
-            float closestInside10mCircle = math.max(closestDistance - 9, 1);
-            block.SetAttenuation(connection, math.clamp(1 / closestInside10mCircle, MinAttenuation, MaxAttenuation));
-
-            // Set lowpass based on distance.
-            _clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
-            block.SetFloat<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>(
-                lowpassFilterNode,
-                AudioKernel.Parameters.Cutoff,
-                math.clamp(
-                    1 / closestInside10mCircle * sampleRatePerChannel,
-                    1000,
-                    sampleRatePerChannel
-                )
-            );
-            // Kick off playback.
-            block.UpdateAudioKernel<AudioKernelUpdate, AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>
-                (new AudioKernelUpdate(), clipNode);
-
+            
+            //DSPNode node = AudioKernelNodeUtils.CreateSpatializerNode(block, 2);
+            DSPNode node = block.CreateDSPNode<AudioKernel.Parameters, AudioKernel.SampleProviders, AudioKernel>();
+            
+            block.AddOutletPort(node, 2);
+            block.Connect(node, 0, _graph.RootDSP, 0);
             block.Complete();
         }
 
@@ -192,9 +115,9 @@ namespace DSPGraphAudio.Kernel.Systems
                 //          clipToSpatializerMap   clipToLowpassMap                               
                 //                              
                 DSPNode node = AudioKernelNodeUtils.CreatePlayClipNode(block, channels);
-                DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
                 _playingNodes.Add(node);
-                _clipToSpatializerMap.Add(node, spatializerNode);
+                /*DSPNode spatializerNode = AudioKernelNodeUtils.CreateSpatializerNode(block, channels);
+                //_clipToSpatializerMap.Add(node, spatializerNode);
 
                 // Used for directional sound.
                 DSPConnection nodeSpatializerConnection = Connect(block, node, spatializerNode);
@@ -206,7 +129,7 @@ namespace DSPGraphAudio.Kernel.Systems
 
                 // Insert lowpass filter node between spatializer and root node.
                 Connect(block, spatializerNode, lowpassFilterNode);
-                Connect(block, lowpassFilterNode, _graph.RootDSP);
+                Connect(block, lowpassFilterNode, _graph.RootDSP);*/
 
                 return node;
             }
@@ -219,7 +142,7 @@ namespace DSPGraphAudio.Kernel.Systems
             _connections.Add(connection);
             return connection;
         }
-        
+
         protected override void OnUpdate()
         {
             _graph.Update();

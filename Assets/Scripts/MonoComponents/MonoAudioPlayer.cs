@@ -1,12 +1,36 @@
 ﻿using DSPGraphAudio.Kernel;
 using DSPGraphAudio.Kernel.Systems;
 using Unity.Audio;
+using Unity.Entities;
 using UnityEngine;
 
 namespace MonoComponents
 {
     public class MonoAudioPlayer : MonoBehaviour
     {
+        /*[SerializeField] private AudioClip clipToPlay;
+
+        public void PlayOnClick()
+        {
+            if (clipToPlay == null)
+            {
+                Debug.Log("No clip assigned, not playing (" + gameObject.name + ")");
+                return;
+            }
+
+            /*World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()
+                .PlayOneShot(clipToPlay, Camera.main.transform.position - transform.position);#1#
+            
+            World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()
+                .PlayClipInHead(clipToPlay);
+        }
+
+        private void Update()
+        {
+            // Update spatalizerNodes
+        }*/
+        
+
         public AudioClip clipToPlay;
 
         private AudioOutputHandle _output;
@@ -79,25 +103,6 @@ namespace MonoComponents
                 Debug.Log("No clip assigned, not playing (" + gameObject.name + ")");
                 return;
             }
-
-            /*
-            using (DSPCommandBlock block = m_Graph.CreateCommandBlock())
-            {
-                // Decide on playback rate here by taking the provider input rate and the output settings of the system
-                float resampleRate = (float)clipToPlay.frequency / AudioSettings.outputSampleRate;
-                block.SetFloat<PlayClipNode.Parameters, PlayClipNode.SampleProviders, PlayClipNode>(m_Node,
-                    PlayClipNode.Parameters.Rate, resampleRate);
-
-                // Assign the sample provider to the slot of the node.
-                block.SetSampleProvider<PlayClipNode.Parameters, PlayClipNode.SampleProviders, PlayClipNode>(
-                    clipToPlay, m_Node, PlayClipNode.SampleProviders.DefaultSlot);
-
-                // Kick off playback. This will be done in a better way in the future.
-                block.UpdateAudioKernel<PlayClipKernelUpdate, PlayClipKernel.Parameters, PlayClipKernel.SampleProviders,
-                    PlayClipKernel>(new PlayClipKernelUpdate(), m_Node);
-            }
-            */
-
             using (DSPCommandBlock block = _graph.CreateCommandBlock())
             {
                 // Decide on playback rate here by taking the provider input rate and the output settings of the system

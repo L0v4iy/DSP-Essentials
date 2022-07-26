@@ -12,16 +12,16 @@ namespace DSPGraphAudio.DSP
     [BurstCompile(CompileSynchronously = true)]
     internal struct SpatializerKernel : IAudioKernel<SpatializerKernel.Parameters, SpatializerKernel.SampleProviders>
     {
-        public enum Parameters
-        {
-            Channel,
-            Samples
-        }
-
         public enum Channels
         {
             Left = 1,
             Right = 0
+        }
+
+        public enum Parameters
+        {
+            Channel,
+            SampleOffset
         }
 
         public enum SampleProviders
@@ -52,7 +52,7 @@ namespace DSPGraphAudio.DSP
             SampleBuffer inputBuffer = context.Inputs.GetSampleBuffer(0);
             SampleBuffer outputBuffer = context.Outputs.GetSampleBuffer(0);
 
-            float delayInSamplesFloat = context.Parameters.GetFloat(Parameters.Samples, 0);
+            float delayInSamplesFloat = context.Parameters.GetFloat(Parameters.SampleOffset, 0);
             int delayInSamples = math.min((int)delayInSamplesFloat, MaxDelay);
             _spatializer.DelayedChannel = (int)context.Parameters.GetFloat(Parameters.Channel, 0);
             _spatializer.DelayInSamples = delayInSamples;
