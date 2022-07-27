@@ -3,8 +3,7 @@
 namespace DSPGraphAudio.Components
 {
     [GenerateAuthoringComponent]
-    public struct AudioEmitter : IComponentData
+    public struct AudioReceiver : IComponentData
     {
-
     }
 }

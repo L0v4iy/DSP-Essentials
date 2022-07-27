@@ -21,7 +21,7 @@ namespace MonoComponents
             Debug.Log($"relativeVector : {relativeVector}");
             
             World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<AudioSystem>()
-                .PlayClipInWorld(clipToPlay, relativeVector);
+                .PlayClipInWorld(clipToPlay);
         }
     }
 }

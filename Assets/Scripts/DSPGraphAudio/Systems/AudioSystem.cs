@@ -12,14 +12,6 @@ namespace DSPGraphAudio.Kernel.Systems
     [BurstCompile(CompileSynchronously = true)]
     public partial class AudioSystem : SystemBase
     {
-        private const float MinAttenuation = 0.1f;
-
-        private const float MaxAttenuation = 1f;
-
-        // Ears are 0.5 metres apart (-0.25 - +0.25).
-        private const float MidToEarDistance = 0.25f;
-        private const int SpeedOfSoundMPerS = 343;
-
         private DSPGraph _graph;
         private List<DSPNode> _freeNodes;
         private List<DSPNode> _playingNodes;
@@ -30,6 +22,13 @@ namespace DSPGraphAudio.Kernel.Systems
         private AudioOutputHandle _output;
 
         private int _handlerID;
+
+        private EndSimulationEntityCommandBufferSystem _ecbSystem;
+
+        protected override void OnStartRunning()
+        {
+            _ecbSystem = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
+        }
 
         protected override void OnCreate()
         {
@@ -99,7 +98,7 @@ namespace DSPGraphAudio.Kernel.Systems
                 //         └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘                            
                 //          clipToSpatializerMap   clipToLowpassMap                               
                 //
-                
+
                 DSPNode node = SampleProviderDSP.CreateNode(block, channels);
                 _playingNodes.Add(node);
                 //Connect(block, node);
@@ -107,9 +106,10 @@ namespace DSPGraphAudio.Kernel.Systems
                 // Used for directional sound
                 DSPNode spatializerNode = SpatializerFilterDSP.CreateNode(block, channels);
                 _clipToSpatializerMap.Add(node, spatializerNode);
-                
+
                 // Lowpass based on distance
-                DSPNode lowpassFilterNode = EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
+                DSPNode lowpassFilterNode =
+                    EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
                 _clipToLowpassMap.Add(node, lowpassFilterNode);
 
                 block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
@@ -147,7 +147,7 @@ namespace DSPGraphAudio.Kernel.Systems
         protected override void OnDestroy()
         {
             // Command blocks can also be completed via the C# 'using' construct for convenience
-            using (DSPCommandBlock block = _graph.CreateCommandBlock())
+            using (DSPCommandBlock block = CreateCommandBlock())
             {
                 for (int i = 0; i < _connections.Count; i++) block.Disconnect(_connections[i]);
                 for (int i = 0; i < _playingNodes.Count; i++) block.ReleaseDSPNode(_playingNodes[i]);
@@ -158,5 +158,13 @@ namespace DSPGraphAudio.Kernel.Systems
 
             _output.Dispose();
         }
+
+        #region GraphFeatures
+
+        public int SampleRate => _graph.SampleRate;
+        public int OutputChannelCount => _graph.OutputChannelCount;
+        public DSPCommandBlock CreateCommandBlock() => _graph.CreateCommandBlock();
+
+        #endregion
     }
 }

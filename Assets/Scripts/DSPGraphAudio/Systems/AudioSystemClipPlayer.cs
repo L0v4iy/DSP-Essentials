@@ -1,13 +1,14 @@
 ﻿using System;
-using DSPGraphAudio.DSP;
+using DSPGraphAudio.Components;
 using DSPGraphAudio.DSP.Filters;
 using DSPGraphAudio.DSP.Providers;
 using Unity.Audio;
-using Unity.Mathematics;
+using Unity.Entities;
 using UnityEngine;
 
 namespace DSPGraphAudio.Kernel.Systems
 {
+    [UpdateBefore(typeof(EndSimulationEntityCommandBufferSystem))]
     public partial class AudioSystem
     {
         /// <summary>
@@ -20,70 +21,52 @@ namespace DSPGraphAudio.Kernel.Systems
         /// </summary>
         /// <param name="audioClip"></param>
         /// <param name="relativeTranslation"></param>
-        public void PlayClipInWorld(AudioClip audioClip, float3 relativeTranslation)
+        public void PlayClipInWorld(AudioClip audioClip)
         {
-            DSPCommandBlock block = _graph.CreateCommandBlock();
+            Entity entity = World.EntityManager.CreateEntityQuery(typeof(WorldAudioEmitter))
+                .GetSingletonEntity();
 
-            DSPNode clipNode = GetFreeNode(block, _graph.OutputChannelCount);
-            
-            float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
-            block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
-                SampleProviderDSP.AudioKernel>(
-                clipNode,
-                SampleProviderDSP.Parameters.ResampleCoef,
-                resampleRate
-            );
-            
-            block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
-                SampleProviderDSP.AudioKernel>(
-                audioClip,
-                clipNode,
-                SampleProviderDSP.SampleProviders.DefaultOutput
-            );
 
-            // Set spatializer node parameters.
-            _clipToSpatializerMap.TryGetValue(clipNode, out DSPNode spatializerNode);
-            
-            // Set delay channel based on relativeTranslation. Is it coming from left or right?
-            SpatializerFilterDSP.Channels channel = relativeTranslation.x < 0
-                ? SpatializerFilterDSP.Channels.Left
-                : SpatializerFilterDSP.Channels.Right;
-            // Set delay samples based on relativeTranslation. How much from the left/right is it coming?
-            float distanceA = math.length(relativeTranslation + new float3(-MidToEarDistance, 0, 0));
-            float distanceB = math.length(relativeTranslation + new float3(+MidToEarDistance, 0, 0));
-            float diff = math.abs(distanceA - distanceB);
-            int sampleRatePerChannel = _graph.SampleRate / _graph.OutputChannelCount;
-            float samples = diff * sampleRatePerChannel / SpeedOfSoundMPerS;
+            using (DSPCommandBlock block = CreateCommandBlock())
+            {
+                WorldAudioEmitter emitter = new WorldAudioEmitter();
+                
+                emitter.SampleProviderNode = SampleProviderDSP.CreateNode(block, OutputChannelCount);
+                emitter.SpatializerNode = SpatializerFilterDSP.CreateNode(block, OutputChannelCount);
+                emitter.EqualizerFilterNode =
+                    EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, OutputChannelCount);
+                block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
+                    EqualizerFilterDSP.AudioKernel>(
+                    emitter.EqualizerFilterNode,
+                    EqualizerFilterDSP.Parameters.Cutoff,
+                    1000
+                );
+                
+                // connect
+                emitter.EmitterConnection = Connect(block, emitter.SampleProviderNode, emitter.SpatializerNode);
+                Connect(block, emitter.SpatializerNode, emitter.EqualizerFilterNode);
+                Connect(block, emitter.EqualizerFilterNode, _graph.RootDSP);
+                
+                
+                // set source;
+                float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
+                block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
+                    SampleProviderDSP.AudioKernel>(emitter.SampleProviderNode,
+                    SampleProviderDSP.Parameters.ResampleCoef, resampleRate);
 
-            block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                (spatializerNode, SpatializerFilterDSP.Parameters.Channel, (float)channel);
+                // Assign the sample provider to the slot of the node.
+                block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
+                    SampleProviderDSP.AudioKernel>(
+                    audioClip, emitter.SampleProviderNode, SampleProviderDSP.SampleProviders.DefaultOutput);
 
-            block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                (spatializerNode, SpatializerFilterDSP.Parameters.SampleOffset, samples);
+                // Kick off playback. This will be done in a better way in the future.
+                block.UpdateAudioKernel<SampleProviderDSP.KernelUpdate, SampleProviderDSP.Parameters,
+                    SampleProviderDSP.SampleProviders,
+                    SampleProviderDSP.AudioKernel>(new SampleProviderDSP.KernelUpdate(), emitter.SampleProviderNode);
 
-            // Set attenuation based on distance.
-            _clipToConnectionMap.TryGetValue(clipNode, out DSPConnection connection);
-            float closestDistance = math.min(distanceA, distanceB);
-            // Anything inside 10m has no attenuation.
-            float closestInside10mCircle = math.max(closestDistance - 9, 1);
-            float attenuation = math.clamp(1 / closestInside10mCircle, MinAttenuation, MaxAttenuation);
-            block.SetAttenuation(connection, attenuation);
+                EntityManager.SetComponentData(entity, emitter);
 
-            // Set lowpass based on distance.
-            /*_clipToLowpassMap.TryGetValue(clipNode, out DSPNode lowpassFilterNode);
-            block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                EqualizerFilterDSP.AudioKernel>
-            (lowpassFilterNode,
-                EqualizerFilterDSP.Parameters.Cutoff,
-                math.clamp(1 / closestInside10mCircle * sampleRatePerChannel, 1000, sampleRatePerChannel)
-            );*/
-            
-            // Kick off playback.
-            block.UpdateAudioKernel<SampleProviderDSP.KernelUpdate, SampleProviderDSP.Parameters,
-                SampleProviderDSP.SampleProviders,
-                SampleProviderDSP.AudioKernel>(new SampleProviderDSP.KernelUpdate(), clipNode);
-
-            block.Complete();
+            }
         }
 
         public void PlayClipInHead(AudioClip audioClip)
@@ -91,7 +74,7 @@ namespace DSPGraphAudio.Kernel.Systems
             if (audioClip == null)
                 throw new ArgumentNullException(nameof(audioClip));
 
-            using (DSPCommandBlock block = _graph.CreateCommandBlock())
+            using (DSPCommandBlock block = CreateCommandBlock())
             {
                 DSPNode node = GetFreeNode(block, 2);
                 // Decide on playback rate here by taking the provider input rate and the output settings of the system

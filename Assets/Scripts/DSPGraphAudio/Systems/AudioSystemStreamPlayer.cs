@@ -1,6 +1,6 @@
-﻿namespace DSPGraphAudio.Kernel.Systems
+﻿namespace DSPGraphAudio.Systems
 {
-    public partial class AudioSystem
+    public partial class AudioSystemStreamPlayer
     {
         
     }
