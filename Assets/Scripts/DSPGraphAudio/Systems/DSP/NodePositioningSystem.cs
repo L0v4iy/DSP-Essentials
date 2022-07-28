@@ -18,7 +18,8 @@ namespace DSPGraphAudio.Systems.DSP
         private const float MinAttenuation = 0.1f;
         private const float MaxAttenuation = 1f;
 
-        
+        private const int SpeedOfSoundMPerS = 343;
+
 
         [BurstCompile]
         protected override void OnUpdate()
@@ -47,7 +48,9 @@ namespace DSPGraphAudio.Systems.DSP
                     //Debug.Log(relativePositionHead);
 
                     float closestDistance = math.min(distanceL, distanceR);
+                    float diff = math.abs(distanceL - distanceR);
                     int sampleRatePerChannel = audioSystem.SampleRate / audioSystem.OutputChannelCount;
+                    float samples = diff * sampleRatePerChannel / SpeedOfSoundMPerS;
 
 
                     SpatializerFilterDSP.Channels channel = distanceL < distanceR
@@ -58,22 +61,13 @@ namespace DSPGraphAudio.Systems.DSP
 
                     using (DSPCommandBlock block = audioSystem.CreateCommandBlock())
                     {
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SampleRate, sampleRatePerChannel);
-                        
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RelativeLeftX, relativePositionL.x);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RelativeLeftY, relativePositionL.y);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RelativeLeftZ, relativePositionL.z);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                                SpatializerFilterDSP.AudioKernel>
+                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.Channel, (float)channel);
 
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RelativeRightX, relativePositionR.x);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RelativeRightY, relativePositionR.y);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RelativeRightZ, relativePositionR.z);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                                SpatializerFilterDSP.AudioKernel>
+                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SampleOffset, samples);
 
                         // set frequency filters
                         /*block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
