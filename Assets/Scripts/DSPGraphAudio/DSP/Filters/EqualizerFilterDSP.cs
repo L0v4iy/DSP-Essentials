@@ -3,7 +3,6 @@ using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace DSPGraphAudio.DSP.Filters
@@ -27,7 +26,7 @@ namespace DSPGraphAudio.DSP.Filters
     // Q: 1f - 100f
     // GainInDBs: -80f - 0f
     //
-    
+
     public struct EqualizerFilterDSP
     {
         public enum Type
@@ -50,7 +49,10 @@ namespace DSPGraphAudio.DSP.Filters
             )]
             FilterType,
 
-            [ParameterDefault(5000.0f)] [ParameterRange(10.0f, 22000.0f)]
+            /// <summary>
+            /// cuts other frequency (higher than value)
+            /// </summary>
+            [ParameterDefault(5000.0f)] [ParameterRange(10.0f, 22050.0f)]
             Cutoff,
 
             [ParameterDefault(1.0f)] [ParameterRange(1.0f, 100.0f)]
@@ -86,27 +88,40 @@ namespace DSPGraphAudio.DSP.Filters
             {
                 SampleBuffer input = context.Inputs.GetSampleBuffer(0);
                 SampleBuffer output = context.Outputs.GetSampleBuffer(0);
+                int channelCount = output.Channels;
                 int sampleFrames = output.Samples;
+
+                if (_channels.Length == 0)
+                {
+                    for (int channel = 0; channel < channelCount; ++channel)
+                    {
+                        NativeArray<float> outputBuffer = output.GetBuffer(channel);
+                        for (int n = 0; n < outputBuffer.Length; n++)
+                            outputBuffer[n] = 0.0f;
+                    }
+
+                    return;
+                }
 
                 ParameterData<Parameters> parameters = context.Parameters;
                 Type filterType = (Type)parameters.GetFloat(Parameters.FilterType, 0);
                 float cutoff = parameters.GetFloat(Parameters.Cutoff, 0);
                 float q = parameters.GetFloat(Parameters.Q, 0);
                 float gain = parameters.GetFloat(Parameters.GainInDBs, 0);
-                FilterDesigner.Coefficients coefficients = FilterDesigner.Design(filterType, cutoff, q, gain, context.SampleRate);
+                FilterDesigner.Coefficients coefficients =
+                    FilterDesigner.Design(filterType, cutoff, q, gain, context.SampleRate);
 
                 for (int c = 0; c < _channels.Length; c++)
                 {
+                    NativeArray<float> inputBuffer = input.GetBuffer(c);
+                    NativeArray<float> outputBuffer = output.GetBuffer(c);
+
                     float z1 = _channels[c].z1;
                     float z2 = _channels[c].z2;
 
-                    for (int i = 0; i < sampleFrames; i++)
+                    for (int i = 0; i < sampleFrames; ++i)
                     {
-                        NativeArray<float> inputBuffer = input.GetBuffer(c);
-                        NativeArray<float> outputBuffer = output.GetBuffer(c);
-
                         float x = inputBuffer[i];
-
                         float v3 = x - z2;
                         float v1 = coefficients.a1 * z1 + coefficients.a2 * v3;
                         float v2 = z2 + coefficients.a2 * z1 + coefficients.a3 * v3;
@@ -139,7 +154,6 @@ namespace DSPGraphAudio.DSP.Filters
             );
             return node;
         }
-        
     }
 
     internal static class FilterDesigner
@@ -194,7 +208,7 @@ namespace DSPGraphAudio.DSP.Filters
         private static Coefficients DesignBell(float fc, float quality, float linearGain)
         {
             float A = linearGain;
-            float g = math.tan(math.PI * fc);
+            float g = Mathf.Tan(Mathf.PI * fc);
             float k = 1 / (quality * A);
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
@@ -208,7 +222,7 @@ namespace DSPGraphAudio.DSP.Filters
         private static Coefficients DesignLowpass(float normalizedFrequency, float Q, float linearGain)
         {
             float A = linearGain;
-            float g = math.tan(math.PI * normalizedFrequency);
+            float g = Mathf.Tan(Mathf.PI * normalizedFrequency);
             float k = 1 / Q;
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
@@ -248,7 +262,7 @@ namespace DSPGraphAudio.DSP.Filters
         private static Coefficients DesignLowshelf(float normalizedFrequency, float Q, float linearGain)
         {
             float A = linearGain;
-            float g = math.tan(math.PI * normalizedFrequency) / math.sqrt(A);
+            float g = Mathf.Tan(Mathf.PI * normalizedFrequency) / Mathf.Sqrt(A);
             float k = 1 / Q;
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
@@ -262,7 +276,7 @@ namespace DSPGraphAudio.DSP.Filters
         private static Coefficients DesignHighshelf(float normalizedFrequency, float Q, float linearGain)
         {
             float A = linearGain;
-            float g = math.tan(math.PI * normalizedFrequency) / math.sqrt(A);
+            float g = Mathf.Tan(Mathf.PI * normalizedFrequency) / Mathf.Sqrt(A);
             float k = 1 / Q;
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;

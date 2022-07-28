@@ -14,5 +14,7 @@ namespace DSPGraphAudio.Components
         public DSPConnection EmitterConnection;
         public DSPNode SpatializerNode;
         public DSPNode EqualizerFilterNode;
+
+        public bool Valid;
     }
 }

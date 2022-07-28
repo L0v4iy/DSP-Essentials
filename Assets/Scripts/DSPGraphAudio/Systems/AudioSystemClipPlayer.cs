@@ -20,7 +20,6 @@ namespace DSPGraphAudio.Kernel.Systems
         /// 5. Set lowpass filter.
         /// </summary>
         /// <param name="audioClip"></param>
-        /// <param name="relativeTranslation"></param>
         public void PlayClipInWorld(AudioClip audioClip)
         {
             Entity entity = World.EntityManager.CreateEntityQuery(typeof(WorldAudioEmitter))
@@ -44,6 +43,8 @@ namespace DSPGraphAudio.Kernel.Systems
                 
                 // connect
                 emitter.EmitterConnection = Connect(block, emitter.SampleProviderNode, emitter.SpatializerNode);
+                emitter.Valid = true;
+                
                 Connect(block, emitter.SpatializerNode, emitter.EqualizerFilterNode);
                 Connect(block, emitter.EqualizerFilterNode, _graph.RootDSP);
                 
