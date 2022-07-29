@@ -1,0 +1,23 @@
+{
+    "name": "Unity.Audio.DSPGraph.Tests",
+    "rootNamespace": "Unity.Audio.DSPGraphTests",
+    "references": [
+        "GUID:fda54fbe933fc444f978b137ea65a1d4",
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:b2b8b21845d8355448c429ddc59070aa"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

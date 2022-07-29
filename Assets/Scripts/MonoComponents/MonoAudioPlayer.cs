@@ -1,4 +1,4 @@
-﻿using DSPGraphAudio.Kernel.Systems;
+﻿using DSPGraph.Audio.Systems;
 using Unity.Entities;
 using UnityEngine;
 
