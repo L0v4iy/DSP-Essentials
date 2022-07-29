@@ -112,9 +112,10 @@ namespace DSPGraph.Audio.DSP.Filters
                     normalOutput[i] = normalInput[i];
                     delayedOutput[i] = delayedInput[i];
                 }
+            
         
-                return;*/ 
-
+                return;*/
+                
                 // First, write delay samples from the buffer into the delayed channel.
                 // sample Pos 
                 int sp = 0;

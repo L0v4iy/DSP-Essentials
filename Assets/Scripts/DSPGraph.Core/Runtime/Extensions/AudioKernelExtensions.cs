@@ -243,7 +243,7 @@ namespace Unity.Audio
                 out SampleProviderDescriptionData sampleProviderDescriptionData)
             {
                 if (s_JobReflectionData == null)
-                    { s_JobReflectionData = (void*)JobsUtility.CreateJobReflectionData(typeof(TAudioKernel), (ExecuteKernelFunction)Execute); }
+                    s_JobReflectionData = (void*)JobsUtility.CreateJobReflectionData(typeof(TAudioKernel), (ExecuteKernelFunction)Execute); 
 
                 if (s_ParameterDescriptionData.Descriptions == null)
                     s_ParameterDescriptionData = CreateParameterDescription();
