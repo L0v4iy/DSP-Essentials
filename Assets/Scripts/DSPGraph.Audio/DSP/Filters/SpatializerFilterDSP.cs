@@ -8,18 +8,13 @@ namespace DSPGraph.Audio.DSP.Filters
 {
     public struct SpatializerFilterDSP
     {
-        private const int MaxDelay = 1025;
+        private const int MaxDelay = 1024*8;
 
-        public enum Channels
-        {
-            Left = 1,
-            Right = 0
-        }
-        
         public enum Parameters
         {
-            Channel,
-            SampleOffset
+            // in samples
+            RightChannelOffset,
+            LeftChannelOffset
         }
         
         public enum SampleProviders
@@ -47,17 +42,26 @@ namespace DSPGraph.Audio.DSP.Filters
             {
                 SampleBuffer inputBuffer = context.Inputs.GetSampleBuffer(0);
                 SampleBuffer outputBuffer = context.Outputs.GetSampleBuffer(0);
+                
 
-                float delayInSamplesFloat = context.Parameters.GetFloat(Parameters.SampleOffset, 0);
-                int delayInSamples = math.min((int)delayInSamplesFloat, MaxDelay);
-                _spatializer.DelayedChannel = (int)context.Parameters.GetFloat(Parameters.Channel, 0);
+                
+                int lDelayInSamples = math.min(
+                    (int)context.Parameters.GetFloat(Parameters.LeftChannelOffset, 0), 
+                    MaxDelay
+                    );
+                float rDelayInSamples = math.min(
+                    (int)context.Parameters.GetFloat(Parameters.RightChannelOffset, 0), 
+                    MaxDelay
+                    );
+                
+                /*_spatializer.DelayedChannel = (int)context.Parameters.GetFloat(Parameters.Channel, 0);
                 _spatializer.DelayInSamples = delayInSamples;
 
                 _spatializer.Delay(
                     inputBuffer,
                     outputBuffer,
                     _delayBuffer
-                );
+                );*/
             }
 
             public void Dispose()

@@ -503,8 +503,8 @@ GameObject:
   - component: {fileID: 1922461961}
   - component: {fileID: 1922461964}
   - component: {fileID: 1922461963}
-  - component: {fileID: 1922461965}
   - component: {fileID: 1922461962}
+  - component: {fileID: 1922461965}
   m_Layer: 0
   m_Name: AudioEmitter
   m_TagString: Untagged

@@ -15,15 +15,23 @@ namespace DSPGraph.Audio.Systems
         private Unity.Audio.DSPGraph _graph;
         private List<DSPNode> _freeNodes;
         private List<DSPNode> _playingNodes;
-        private Dictionary<DSPNode, DSPNode> _clipToSpatializerMap;
-        private Dictionary<DSPNode, DSPConnection> _clipToConnectionMap;
-        private Dictionary<DSPNode, DSPNode> _clipToLowpassMap;
         private List<DSPConnection> _connections;
         private AudioOutputHandle _output;
 
         private int _handlerID;
 
         private EndSimulationEntityCommandBufferSystem _ecbSystem;
+
+        public AudioSystem()
+        {
+            SoundFormat format = ChannelEnumConverter.GetSoundFormatFromSpeakerMode(AudioSettings.speakerMode);
+            int channels = ChannelEnumConverter.GetChannelCountFromSoundFormat(format);
+            AudioSettings.GetDSPBufferSize(out int bufferLength, out int numBuffers);
+
+            int sampleRate = AudioSettings.outputSampleRate;
+
+            _graph = Unity.Audio.DSPGraph.Create(format, channels, bufferLength, sampleRate);
+        }
 
         protected override void OnStartRunning()
         {
@@ -34,18 +42,8 @@ namespace DSPGraph.Audio.Systems
         {
             _freeNodes = new List<DSPNode>();
             _playingNodes = new List<DSPNode>();
-            _clipToSpatializerMap = new Dictionary<DSPNode, DSPNode>();
-            _clipToConnectionMap = new Dictionary<DSPNode, DSPConnection>();
-            _clipToLowpassMap = new Dictionary<DSPNode, DSPNode>();
             _connections = new List<DSPConnection>();
 
-            SoundFormat format = ChannelEnumConverter.GetSoundFormatFromSpeakerMode(AudioSettings.speakerMode);
-            int channels = ChannelEnumConverter.GetChannelCountFromSoundFormat(format);
-            AudioSettings.GetDSPBufferSize(out int bufferLength, out int numBuffers);
-
-            int sampleRate = AudioSettings.outputSampleRate;
-
-            _graph = Unity.Audio.DSPGraph.Create(format, channels, bufferLength, sampleRate);
 
             DefaultDSPGraphDriver driver = new DefaultDSPGraphDriver { Graph = _graph };
             _output = driver.AttachToDefaultOutput();
@@ -105,12 +103,10 @@ namespace DSPGraph.Audio.Systems
 
                 // Used for directional sound
                 DSPNode spatializerNode = SpatializerFilterDSP.CreateNode(block, channels);
-                _clipToSpatializerMap.Add(node, spatializerNode);
 
                 // Lowpass based on distance
                 DSPNode lowpassFilterNode =
                     EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
-                _clipToLowpassMap.Add(node, lowpassFilterNode);
 
                 block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
                     EqualizerFilterDSP.AudioKernel>(
@@ -119,8 +115,7 @@ namespace DSPGraph.Audio.Systems
                     1000
                 );
 
-
-                _clipToConnectionMap.Add(node, Connect(block, node, spatializerNode));
+                Connect(block, node, spatializerNode);
                 Connect(block, spatializerNode, lowpassFilterNode);
                 Connect(block, lowpassFilterNode, _graph.RootDSP);
 

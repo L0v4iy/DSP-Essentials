@@ -1,5 +1,6 @@
 ﻿using Unity.Audio;
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace DSPGraph.Audio.Components
 {
@@ -15,6 +16,36 @@ namespace DSPGraph.Audio.Components
         public DSPNode SpatializerNode;
         public DSPNode EqualizerFilterNode;
 
+
+        public ChannelData LeftChannelData;
+        public ChannelData RightChannelData;
+
+
         public bool Valid;
+    }
+
+    public struct ChannelData
+    {
+        public float SampleDelay;
+        public float Attenuation;
+
+
+        // Factors 
+        // range value: -1 to 1
+        /// <summary>
+        /// Down to Up
+        /// </summary>
+        public float TransverseFactor;
+
+        /// <summary>
+        /// Against side receiver to In side receiver
+        /// Left | Right
+        /// </summary>
+        public float SagittalFactor;
+
+        /// <summary>
+        /// Back to front
+        /// </summary>
+        public float CoronalFactor;
     }
 }
