@@ -19,6 +19,9 @@ namespace DSPGraph.Audio.Components
 
         public ChannelData LeftChannelData;
         public ChannelData RightChannelData;
+        
+        // -1: left is left | 0: mono | 1: left is right
+        public float ChannelInvertRate;
 
 
         public bool Valid;

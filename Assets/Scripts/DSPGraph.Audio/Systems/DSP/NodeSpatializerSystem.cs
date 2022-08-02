@@ -28,14 +28,17 @@ namespace DSPGraph.Audio.Systems.DSP
             // get ears
             Entity receiverEntity = EntityManager.CreateEntityQuery(typeof(AudioReceiver)).GetSingletonEntity();
             AudioReceiver audioReceiver = EntityManager.GetComponentData<AudioReceiver>(receiverEntity);
-            float3 headPos = EntityManager.GetComponentData<LocalToWorld>(receiverEntity).Position;
-            float3 leftEarPos = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.LeftReceiver).Position;
-            float3 rightEarPos = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.RightReceiver).Position;
+            float3 receiverPosL = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.LeftReceiver).Position;
+            float3 receiverPosR = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.RightReceiver).Position;
+            float3 receiverEulerL = float3.zero;
+            float3 receiverEulerR = float3.zero;
+
 
             AudioSystem audioSystem = World.GetOrCreateSystem<AudioSystem>();
             int sampleRate = audioSystem.SampleRate;
             int outputChannelCount = audioSystem.OutputChannelCount;
             float soundAbsorptCoeff = SubstanceUtil.GetSubstanceSoundAbsorptionCoefficient(SurroundedSubstance.Air);
+
 
             Entities.ForEach(
                     (Entity e, ref WorldAudioEmitter emitter, in LocalToWorld pos, in EqualizerSetter setter) =>
@@ -46,27 +49,34 @@ namespace DSPGraph.Audio.Systems.DSP
                         int sampleRatePerChannel = sampleRate / outputChannelCount;
 
                         // calculate vector to listener
-                        float3 relativePositionL = pos.Position - leftEarPos;
-                        float3 relativePositionR = pos.Position - rightEarPos;
+                        float3 relativePositionL = pos.Position - receiverPosL;
+                        float3 relativePositionR = pos.Position - receiverPosR;
                         float distanceL = math.length(relativePositionL);
                         float distanceR = math.length(relativePositionR);
+                        
+                        // define euler angles (xyz)
+                        float3 emitterEuler = float3.zero;
 
-
+                        // normal | mono | invert 
+                        emitter.ChannelInvertRate = 0;
+                        
+                        float3 relativeNormalizedL = math.normalize(relativePositionL);
+                        float3 relativeNormalizedR = math.normalize(relativePositionR);
                         // left config
                         emitter.LeftChannelData.SampleDelay = distanceL * sampleRatePerChannel / SpeedOfSoundMPerS;
                         emitter.LeftChannelData.Attenuation =
                             SubstanceUtil.CalculateAttenuationFactor(distanceL, soundAbsorptCoeff);
-                        emitter.LeftChannelData.TransverseFactor = 0;
-                        emitter.LeftChannelData.SagittalFactor = 0;
-                        emitter.LeftChannelData.CoronalFactor = 0;
+                        emitter.LeftChannelData.TransverseFactor = math.dot(math.up() + receiverEulerL, relativeNormalizedL);
+                        emitter.LeftChannelData.SagittalFactor = math.dot(math.left() + receiverEulerL, relativeNormalizedL);
+                        emitter.LeftChannelData.CoronalFactor = math.dot(math.forward() + receiverEulerL, relativeNormalizedL);
 
                         // right config
                         emitter.RightChannelData.SampleDelay = distanceR * sampleRatePerChannel / SpeedOfSoundMPerS;
                         emitter.RightChannelData.Attenuation =
                             SubstanceUtil.CalculateAttenuationFactor(distanceR, soundAbsorptCoeff);
-                        emitter.RightChannelData.TransverseFactor = 0;
-                        emitter.RightChannelData.SagittalFactor = 0;
-                        emitter.RightChannelData.CoronalFactor = 0;
+                        emitter.RightChannelData.TransverseFactor = math.dot(math.up() + receiverEulerR, relativeNormalizedR);
+                        emitter.RightChannelData.SagittalFactor =  math.dot(math.right() + receiverEulerR, relativeNormalizedR);
+                        emitter.RightChannelData.CoronalFactor =  math.dot(math.forward() + receiverEulerR, relativeNormalizedR);
                     })
                 .Run();
 
