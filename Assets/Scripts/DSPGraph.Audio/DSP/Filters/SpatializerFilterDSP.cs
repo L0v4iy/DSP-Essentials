@@ -1,14 +1,19 @@
-﻿using Unity.Audio;
+﻿using System;
+using System.Diagnostics;
+using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace DSPGraph.Audio.DSP.Filters
 {
     public struct SpatializerFilterDSP
     {
-        private const int MaxDelay = 1024*8;
+        private const int MaxDelay = 1024 * 8;
 
         public enum Parameters
         {
@@ -16,7 +21,7 @@ namespace DSPGraph.Audio.DSP.Filters
             RightChannelOffset,
             LeftChannelOffset
         }
-        
+
         public enum SampleProviders
         {
         }
@@ -25,16 +30,18 @@ namespace DSPGraph.Audio.DSP.Filters
         public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
             [NativeDisableContainerSafetyRestriction]
-            private NativeArray<float> _delayBufferL;
-            private NativeArray<float> _delayBufferR;
+            private NativeFillBuffer _delayBufferL;
+
+            [NativeDisableContainerSafetyRestriction]
+            private NativeFillBuffer _delayBufferR;
 
             private Delayer _delayer;
 
             public void Initialize()
             {
-                _delayBufferL = new NativeArray<float>(MaxDelay, Allocator.AudioKernel);
-                _delayBufferR = new NativeArray<float>(MaxDelay, Allocator.AudioKernel);
-                
+                _delayBufferL = new NativeFillBuffer(MaxDelay, Allocator.AudioKernel);
+                _delayBufferR = new NativeFillBuffer(MaxDelay, Allocator.AudioKernel);
+
                 _delayer = new Delayer();
             }
 
@@ -43,30 +50,32 @@ namespace DSPGraph.Audio.DSP.Filters
             {
                 SampleBuffer inputBuffer = context.Inputs.GetSampleBuffer(0);
                 SampleBuffer outputBuffer = context.Outputs.GetSampleBuffer(0);
-                
+
                 int delayInSamplesL = math.min(
-                    (int)context.Parameters.GetFloat(Parameters.LeftChannelOffset, 0), 
+                    (int)context.Parameters.GetFloat(Parameters.LeftChannelOffset, 0),
                     MaxDelay
-                    );
+                );
                 int delayInSamplesR = math.min(
-                    (int)context.Parameters.GetFloat(Parameters.RightChannelOffset, 0), 
+                    (int)context.Parameters.GetFloat(Parameters.RightChannelOffset, 0),
                     MaxDelay
-                    );
+                );
 
                 _delayer.DelayInSamplesL = delayInSamplesL;
                 _delayer.DelayInSamplesR = delayInSamplesR;
+                Debug.Log($"dL: {delayInSamplesL}, dR: {delayInSamplesR}");
+                
                 _delayer.Delay(
                     inputBuffer,
                     outputBuffer,
-                    _delayBufferL,
-                    _delayBufferR
+                    ref _delayBufferL,
+                    ref _delayBufferR
                 );
             }
 
             public void Dispose()
             {
-                if (_delayBuffer.IsCreated)
-                    _delayBuffer.Dispose();
+                _delayBufferL.Dispose();
+                _delayBufferR.Dispose();
             }
         }
 
@@ -90,59 +99,87 @@ namespace DSPGraph.Audio.DSP.Filters
 
         internal struct Delayer
         {
-            public int DelayedChannel;
-            public int DelayInSamples;
-            
-            public int DelayInSamplesL;
-            public int DelayInSamplesR;
+            internal int DelayInSamplesL;
+            internal int DelayInSamplesR;
 
             // Delay left or right channel a number of samples.
             public void Delay(
                 SampleBuffer input,
                 SampleBuffer output,
-                NativeArray<float> delayBufferL,
-                NativeArray<float> delayBufferR
-                )
+                ref NativeFillBuffer delayBufferL,
+                ref NativeFillBuffer delayBufferR
+            )
             {
                 NativeArray<float> inputL = input.GetBuffer(0);
                 NativeArray<float> inputR = input.GetBuffer(1);
                 NativeArray<float> outputL = output.GetBuffer(0);
                 NativeArray<float> outputR = output.GetBuffer(1);
+
+                if (inputL.Length != inputR.Length)
+                    throw new ApplicationException("Input buffers are different size.");
+
+                // push to delay buffers
+                //TODO:2022-08-03 14:09:40  required optimization
+                delayBufferL.Write(inputL, inputL.Length);
+                delayBufferR.Write(inputR, inputR.Length);
+
+                int bufferSizeL = delayBufferL.Length;
+                int bufferSizeR = delayBufferR.Length;
+                int readSamplesFromBufferL = bufferSizeL - DelayInSamplesL < 0 ? 0 : bufferSizeL - DelayInSamplesL;
+                int readSamplesFromBufferR = bufferSizeR - DelayInSamplesR < 0 ? 0 : bufferSizeR - DelayInSamplesR;
                 
-                NativeStream stream = new NativeStream();
-                stream.
+                NativeArray<float> delayedSampleArrayL = new NativeArray<float>(readSamplesFromBufferL, Allocator.AudioKernel);
+                NativeArray<float> delayedSampleArrayR = new NativeArray<float>(readSamplesFromBufferR, Allocator.AudioKernel);
+                delayBufferL.Read(ref delayedSampleArrayL, 0, readSamplesFromBufferL);
+                delayBufferR.Read(ref delayedSampleArrayR, 0, readSamplesFromBufferR);
+                // recalculate samples to output buffer
+                InfillBuffer(in delayedSampleArrayL, ref outputL);
+                InfillBuffer(in delayedSampleArrayR, ref outputR);
                 
+                // service
+                delayBufferL.ShiftBuffer(readSamplesFromBufferL);
+                delayBufferR.ShiftBuffer(readSamplesFromBufferR);
+                delayedSampleArrayL.Dispose();
+                delayedSampleArrayR.Dispose();
+            }
 
-
-                /*for (int i = 0; i < output.Samples; i++)
+            /// <summary>
+            /// Resize buffer data
+            /// </summary>
+            private void InfillBuffer(in NativeArray<float> from, ref NativeArray<float> to)
+            {
+                if (to.Length > from.Length)
                 {
-                    normalOutput[i] = normalInput[i];
-                    delayedOutput[i] = delayedInput[i];
+                    // 1234 | nnnnnnnn -> 00001234
+                    int fromToDif = to.Length - from.Length;
+                    for (int i = fromToDif; i < to.Length; i++)
+                    {
+                        to[i] = from[i-fromToDif];
+                    }
+                    for (int i = 0; i < fromToDif; i++)
+                    {
+                        to[i] = 0f;
+                    }
                 }
-            
-        
-                return;*/
-                
-                // First, write delay samples from the buffer into the delayed channel.
-                // sample Pos 
-                int sp = 0;
-                for (; sp < sampleDelay; sp++)
+                else if (to.Length < from.Length)
                 {
-                    outputR[sp] = delayBuffer[sp]; // Read from the buffer (can be empty at the start).
-                    outputL[sp] = inputL[sp];
+                    // 1234567890123456 | nnnnnnnn -> 24685246
+                    //TODO:2022-08-02 19:37:27  resample
+                    // now cut off
+                    for (int i = 0; i < to.Length; i++)
+                    {
+                        // now cutted
+                        to[i] = from[i];
+                    }
                 }
-
-                // Then, write the rest up to the delayed part.
-                for (; sp < output.Samples; sp++)
+                else
                 {
-                    outputR[sp] = delayedInput[sp - sampleDelay]; // From the delayed input.
-                    outputL[sp] = inputL[sp];
+                    for (int i = 0; i < to.Length; i++)
+                    {
+                        // now cutted
+                        to[i] = from[i];
+                    }
                 }
-
-                // And write the rest (of the delayed channel) on the delay buffer.
-                sp -= sampleDelay;
-                for (int i = 0; sp < output.Samples; sp++, i++)
-                    delayBuffer[i] = delayedInput[sp]; // Write the rest to the buffer.
             }
         }
     }
