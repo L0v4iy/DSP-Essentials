@@ -103,21 +103,9 @@ namespace DSPGraph.Audio.Systems
 
                 // Used for directional sound
                 DSPNode spatializerNode = SpatializerFilterDSP.CreateNode(block, channels);
-
-                // Lowpass based on distance
-                DSPNode lowpassFilterNode =
-                    EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, channels);
-
-                block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                    EqualizerFilterDSP.AudioKernel>(
-                    lowpassFilterNode,
-                    EqualizerFilterDSP.Parameters.Cutoff,
-                    1000
-                );
-
+                
                 Connect(block, node, spatializerNode);
-                Connect(block, spatializerNode, lowpassFilterNode);
-                Connect(block, lowpassFilterNode, _graph.RootDSP);
+                Connect(block, spatializerNode, _graph.RootDSP);
 
                 /*Connect(block, node, spatializerNode);
                 Connect(block, spatializerNode, _graph.RootDSP);*/

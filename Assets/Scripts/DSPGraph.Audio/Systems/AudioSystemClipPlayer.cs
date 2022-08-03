@@ -32,23 +32,14 @@ namespace DSPGraph.Audio.Systems
                 
                 emitter.SampleProviderNode = SampleProviderDSP.CreateNode(block, OutputChannelCount);
                 emitter.SpatializerNode = SpatializerFilterDSP.CreateNode(block, OutputChannelCount);
-                emitter.EqualizerFilterNode =
-                    EqualizerFilterDSP.CreateNode(block, EqualizerFilterDSP.Type.Lowpass, OutputChannelCount);
-                block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                    EqualizerFilterDSP.AudioKernel>(
-                    emitter.EqualizerFilterNode,
-                    EqualizerFilterDSP.Parameters.Cutoff,
-                    1000
-                );
+
                 
-                // connect
-                emitter.EmitterConnection = Connect(block, emitter.SampleProviderNode, emitter.SpatializerNode);
+                Connect(block, emitter.SampleProviderNode, emitter.SpatializerNode);
                 emitter.Valid = true;
                 
-                Connect(block, emitter.SpatializerNode, emitter.EqualizerFilterNode);
-                Connect(block, emitter.EqualizerFilterNode, _graph.RootDSP);
-                
-                
+                Connect(block, emitter.SpatializerNode, _graph.RootDSP);
+
+
                 // set source;
                 float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
                 block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,

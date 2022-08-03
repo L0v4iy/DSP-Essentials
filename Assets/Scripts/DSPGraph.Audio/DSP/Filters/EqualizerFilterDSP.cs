@@ -1,9 +1,7 @@
-﻿using System;
-using Unity.Audio;
+﻿using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using UnityEngine;
 
 namespace DSPGraph.Audio.DSP.Filters
 {
@@ -29,24 +27,13 @@ namespace DSPGraph.Audio.DSP.Filters
 
     public struct EqualizerFilterDSP
     {
-        public enum Type
-        {
-            Lowpass,
-            Highpass,
-            Bandpass,
-            Bell,
-            Notch,
-            Lowshelf,
-            Highshelf
-        }
-
         public enum Parameters
         {
-            [ParameterDefault((float)Type.Lowpass)]
+            [ParameterDefault((float)FilterDesigner.Type.Lowpass)]
             [ParameterRange(
-                (float)Type.Lowpass,
-                (float)Type.Highshelf
-            )] 
+                (float)FilterDesigner.Type.Lowpass,
+                (float)FilterDesigner.Type.Highshelf
+            )]
             FilterType,
 
             /// <summary>
@@ -55,6 +42,9 @@ namespace DSPGraph.Audio.DSP.Filters
             [ParameterDefault(5000.0f)] [ParameterRange(10.0f, 22050.0f)]
             Cutoff,
 
+            /// <summary>
+            /// Crystallize (whistling sound)
+            /// </summary>
             [ParameterDefault(1.0f)] [ParameterRange(1.0f, 100.0f)]
             Q,
 
@@ -102,10 +92,10 @@ namespace DSPGraph.Audio.DSP.Filters
                     }
 
                     return;
-                } 
+                }
 
                 ParameterData<Parameters> parameters = context.Parameters;
-                Type filterType = (Type)parameters.GetFloat(Parameters.FilterType, 0);
+                FilterDesigner.Type filterType = (FilterDesigner.Type)parameters.GetFloat(Parameters.FilterType, 0);
                 float cutoff = parameters.GetFloat(Parameters.Cutoff, 0);
                 float q = parameters.GetFloat(Parameters.Q, 0);
                 float gain = parameters.GetFloat(Parameters.GainInDBs, 0);
@@ -143,7 +133,7 @@ namespace DSPGraph.Audio.DSP.Filters
             }
         }
 
-        public static DSPNode CreateNode(DSPCommandBlock block, Type type, int channels)
+        public static DSPNode CreateNode(DSPCommandBlock block, FilterDesigner.Type type, int channels)
         {
             DSPNode node = block.CreateDSPNode<Parameters, SampleProviders, AudioKernel>();
             block.AddInletPort(node, channels);
@@ -154,138 +144,6 @@ namespace DSPGraph.Audio.DSP.Filters
                 (float)type
             );
             return node;
-        }
-    }
-
-    internal static class FilterDesigner
-    {
-        internal struct Coefficients
-        {
-            public float A, g, k, a1, a2, a3, m0, m1, m2;
-        }
-
-        internal static Coefficients Design(EqualizerFilterDSP.Type type, float normalizedFrequency, float Q,
-            float linearGain)
-        {
-            switch (type)
-            {
-                case EqualizerFilterDSP.Type.Lowpass: return DesignLowpass(normalizedFrequency, Q, linearGain);
-                case EqualizerFilterDSP.Type.Highpass: return DesignHighpass(normalizedFrequency, Q, linearGain);
-                case EqualizerFilterDSP.Type.Bandpass: return DesignBandpass(normalizedFrequency, Q, linearGain);
-                case EqualizerFilterDSP.Type.Bell: return DesignBell(normalizedFrequency, Q, linearGain);
-                case EqualizerFilterDSP.Type.Notch: return DesignNotch(normalizedFrequency, Q, linearGain);
-                case EqualizerFilterDSP.Type.Lowshelf: return DesignLowshelf(normalizedFrequency, Q, linearGain);
-                case EqualizerFilterDSP.Type.Highshelf: return DesignHighshelf(normalizedFrequency, Q, linearGain);
-                default:
-                    throw new ArgumentException("Unknown filter type", nameof(type));
-            }
-        }
-
-        internal static Coefficients Design(EqualizerFilterDSP.Type type, float cutoff, float Q, float gainInDBs,
-            float sampleRate)
-        {
-            float linearGain = Mathf.Pow(10, gainInDBs / 20);
-            switch (type)
-            {
-                case EqualizerFilterDSP.Type.Lowpass:
-                    return DesignLowpass(cutoff / sampleRate, Q, linearGain);
-                case EqualizerFilterDSP.Type.Highpass:
-                    return DesignHighpass(cutoff / sampleRate, Q, linearGain);
-                case EqualizerFilterDSP.Type.Bandpass:
-                    return DesignBandpass(cutoff / sampleRate, Q, linearGain);
-                case EqualizerFilterDSP.Type.Bell:
-                    return DesignBell(cutoff / sampleRate, Q, linearGain);
-                case EqualizerFilterDSP.Type.Notch:
-                    return DesignNotch(cutoff / sampleRate, Q, linearGain);
-                case EqualizerFilterDSP.Type.Lowshelf:
-                    return DesignLowshelf(cutoff / sampleRate, Q, linearGain);
-                case EqualizerFilterDSP.Type.Highshelf:
-                    return DesignHighshelf(cutoff / sampleRate, Q, linearGain);
-                default:
-                    throw new ArgumentException("Unknown filter type", nameof(type));
-            }
-        }
-
-        private static Coefficients DesignBell(float fc, float quality, float linearGain)
-        {
-            float A = linearGain;
-            float g = Mathf.Tan(Mathf.PI * fc);
-            float k = 1 / (quality * A);
-            float a1 = 1 / (1 + g * (g + k));
-            float a2 = g * a1;
-            float a3 = g * a2;
-            int m0 = 1;
-            float m1 = k * (A * A - 1);
-            int m2 = 0;
-            return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
-        }
-
-        private static Coefficients DesignLowpass(float normalizedFrequency, float Q, float linearGain)
-        {
-            float A = linearGain;
-            float g = Mathf.Tan(Mathf.PI * normalizedFrequency);
-            float k = 1 / Q;
-            float a1 = 1 / (1 + g * (g + k));
-            float a2 = g * a1;
-            float a3 = g * a2;
-            int m0 = 0;
-            int m1 = 0;
-            int m2 = 1;
-            return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
-        }
-
-        private static Coefficients DesignBandpass(float normalizedFrequency, float Q, float linearGain)
-        {
-            Coefficients coefficients = Design(EqualizerFilterDSP.Type.Lowpass, normalizedFrequency, Q, linearGain);
-            coefficients.m1 = 1;
-            coefficients.m2 = 0;
-            return coefficients;
-        }
-
-        private static Coefficients DesignHighpass(float normalizedFrequency, float Q, float linearGain)
-        {
-            Coefficients coefficients = Design(EqualizerFilterDSP.Type.Lowpass, normalizedFrequency, Q, linearGain);
-            coefficients.m0 = 1;
-            coefficients.m1 = -coefficients.k;
-            coefficients.m2 = -1;
-            return coefficients;
-        }
-
-        private static Coefficients DesignNotch(float normalizedFrequency, float Q, float linearGain)
-        {
-            Coefficients coefficients = DesignLowpass(normalizedFrequency, Q, linearGain);
-            coefficients.m0 = 1;
-            coefficients.m1 = -coefficients.k;
-            coefficients.m2 = 0;
-            return coefficients;
-        }
-
-        private static Coefficients DesignLowshelf(float normalizedFrequency, float Q, float linearGain)
-        {
-            float A = linearGain;
-            float g = Mathf.Tan(Mathf.PI * normalizedFrequency) / Mathf.Sqrt(A);
-            float k = 1 / Q;
-            float a1 = 1 / (1 + g * (g + k));
-            float a2 = g * a1;
-            float a3 = g * a2;
-            int m0 = 1;
-            float m1 = k * (A - 1);
-            float m2 = A * A - 1;
-            return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
-        }
-
-        private static Coefficients DesignHighshelf(float normalizedFrequency, float Q, float linearGain)
-        {
-            float A = linearGain;
-            float g = Mathf.Tan(Mathf.PI * normalizedFrequency) / Mathf.Sqrt(A);
-            float k = 1 / Q;
-            float a1 = 1 / (1 + g * (g + k));
-            float a2 = g * a1;
-            float a3 = g * a2;
-            float m0 = A * A;
-            float m1 = k * (1 - A) * A;
-            float m2 = 1 - A * A;
-            return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
         }
     }
 }

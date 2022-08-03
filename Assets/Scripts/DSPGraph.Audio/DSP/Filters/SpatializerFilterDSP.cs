@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
@@ -35,10 +36,14 @@ namespace DSPGraph.Audio.DSP.Filters
         public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
             private Delayer _delayer;
+            private Distorer _distorerL;
+            private Distorer _distorerR;
 
             public void Initialize()
             {
                 _delayer = new Delayer(MaxDelay);
+                _distorerL = Distorer.CreateDistorer();
+                _distorerR = Distorer.CreateDistorer();
             }
 
 
@@ -83,13 +88,9 @@ namespace DSPGraph.Audio.DSP.Filters
                 );
 
 
-                // set Transverse to samples
-
-
-                // set Sagittal to samples
-
-
-                // set Coronal to samples
+                // set Transverse, Sagittal, Coronal to samples
+                _distorerL.Distort(ref intermediateBufferL, attenuationL, transverseL, sagittalL, coronalL);
+                _distorerR.Distort(ref intermediateBufferR, attenuationR, transverseR, sagittalR, coronalR);
 
 
                 // recalculate samples to output buffer
@@ -221,6 +222,112 @@ namespace DSPGraph.Audio.DSP.Filters
             {
                 _delayBufferL.Dispose();
                 _delayBufferR.Dispose();
+            }
+        }
+
+        private struct Distorer
+        {
+            
+            public static Distorer CreateDistorer()
+            {
+                return new Distorer()
+                {
+                    z1 = 0,
+                    z2 = 0
+                };
+            }
+
+            private float z1;
+            private float z2;
+
+            public void Distort
+            (
+                ref NativeArray<float> sampleBuffer,
+                float attenuation,
+                float transverseFactor,
+                float sagittalFactor,
+                float coronalFactor
+            )
+            {
+                // 50 - 1/2 output Hz
+                float transverseNormalizedFreq = 22050f;
+                float sagittalNormalizedFreq = 22050f;
+                float coronalNormalizedFreq = 22050f;
+
+                // 1-100f
+                float transverseQ = 1f;
+                float sagittalQ = 1f;
+                float coronalQ = 1f;
+
+                // 0 to -100;
+                float gain = math.lerp(100f, 0f, 1f - attenuation);
+
+                FilterDesigner.Coefficients transverseCoeff = transverseFactor < 0
+                    ? FilterDesigner.Design(FilterDesigner.Type.Lowpass, transverseNormalizedFreq, transverseQ, gain)
+                    : FilterDesigner.Design(FilterDesigner.Type.Highpass, transverseNormalizedFreq, transverseQ, gain);
+
+                FilterDesigner.Coefficients sagittalCoeff = sagittalFactor < 0
+                    ? FilterDesigner.Design(FilterDesigner.Type.Lowshelf, sagittalNormalizedFreq, sagittalQ, gain)
+                    : FilterDesigner.Design(FilterDesigner.Type.Highshelf, sagittalNormalizedFreq, sagittalQ, gain);
+
+                FilterDesigner.Coefficients coronalCoeff = coronalFactor < 0
+                    ? FilterDesigner.Design(FilterDesigner.Type.Bandpass, coronalNormalizedFreq / 8 * coronalFactor, coronalQ, gain)
+                    : FilterDesigner.Design(FilterDesigner.Type.Bandpass, coronalNormalizedFreq, coronalQ, gain);
+
+                ProcessFilter(
+                    transverseCoeff,
+                    sagittalCoeff,
+                    coronalCoeff,
+                    ref sampleBuffer
+                );
+            }
+
+            private void ProcessFilter(
+                FilterDesigner.Coefficients tCoefficients,
+                FilterDesigner.Coefficients sCoefficients,
+                FilterDesigner.Coefficients cCoefficients,
+                ref NativeArray<float> sampleBuffer
+            )
+            {
+                /*for (int i = 0; i < sampleFrames; ++i)
+                {
+                    float x = inputBuffer[i];
+                    float v3 = x - z2;
+                    float v1 = coefficients.a1 * z1 + coefficients.a2 * v3;
+                    float v2 = z2 + coefficients.a2 * z1 + coefficients.a3 * v3;
+                    z1 = 2 * v1 - z1;
+                    z2 = 2 * v2 - z2;
+                    outputBuffer[i] = coefficients.A *
+                                      (coefficients.m0 * x + coefficients.m1 * v1 + coefficients.m2 * v2);
+                }*/
+                for (int i = 0; i < sampleBuffer.Length; ++i)
+                {
+                    float x = sampleBuffer[i];
+                    float v3 = x - z2;
+                    float v1 = Mid(tCoefficients.a1, sCoefficients.a1, cCoefficients.a1)
+                               * z1
+                               + Mid(tCoefficients.a2, sCoefficients.a2, cCoefficients.a2) * v3;
+
+                    float v2 = z2 + Mid(tCoefficients.a2, sCoefficients.a2, cCoefficients.a2)
+                                  * z1
+                                  + Mid(tCoefficients.a3, sCoefficients.a3, cCoefficients.a3) * v3;
+                    z1 = 2 * v1 - z1;
+                    z2 = 2 * v2 - z2;
+                    /*sampleBuffer[i] = Mid(tCoefficients.A, sCoefficients.A, cCoefficients.A)
+                                * (
+                                    Mid(tCoefficients.m0, sCoefficients.m0, cCoefficients.m0) * x
+                                    +
+                                    Mid(tCoefficients.m1, sCoefficients.m1, cCoefficients.m1) * v1
+                                    +
+                                    Mid(tCoefficients.m2, sCoefficients.m2, cCoefficients.m2) * v2
+                                );*/
+                    sampleBuffer[i] = Mid(tCoefficients.A, sCoefficients.A, cCoefficients.A) * x;
+                }
+            }
+
+            private static float Mid(float a, float b, float c)
+            {
+                return (a + b + c) / 3;
             }
         }
 

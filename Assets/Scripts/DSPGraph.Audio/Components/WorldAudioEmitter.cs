@@ -1,6 +1,5 @@
 ﻿using Unity.Audio;
 using Unity.Entities;
-using Unity.Mathematics;
 
 namespace DSPGraph.Audio.Components
 {
@@ -12,9 +11,7 @@ namespace DSPGraph.Audio.Components
     {
         // pipeline works as fields here
         public DSPNode SampleProviderNode;
-        public DSPConnection EmitterConnection;
         public DSPNode SpatializerNode;
-        public DSPNode EqualizerFilterNode;
 
 
         public ChannelData LeftChannelData;
