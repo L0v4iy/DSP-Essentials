@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Diagnostics;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Entities;
 using Unity.Mathematics;
-using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace DSPGraph.Audio.DSP.Filters
 {
@@ -18,8 +14,17 @@ namespace DSPGraph.Audio.DSP.Filters
         public enum Parameters
         {
             // in samples
-            RightChannelOffset,
-            LeftChannelOffset
+            ChannelOffsetL,
+            AttenuationL,
+            TransverseL,
+            SagittalL,
+            CoronalL,
+
+            ChannelOffsetR,
+            AttenuationR,
+            TransverseR,
+            SagittalR,
+            CoronalR
         }
 
         public enum SampleProviders
@@ -29,20 +34,11 @@ namespace DSPGraph.Audio.DSP.Filters
         [BurstCompile(CompileSynchronously = true)]
         public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
-            [NativeDisableContainerSafetyRestriction]
-            private NativeFillBuffer _delayBufferL;
-
-            [NativeDisableContainerSafetyRestriction]
-            private NativeFillBuffer _delayBufferR;
-
             private Delayer _delayer;
 
             public void Initialize()
             {
-                _delayBufferL = new NativeFillBuffer(MaxDelay, Allocator.AudioKernel);
-                _delayBufferR = new NativeFillBuffer(MaxDelay, Allocator.AudioKernel);
-
-                _delayer = new Delayer();
+                _delayer = new Delayer(MaxDelay);
             }
 
 
@@ -51,101 +47,70 @@ namespace DSPGraph.Audio.DSP.Filters
                 SampleBuffer inputBuffer = context.Inputs.GetSampleBuffer(0);
                 SampleBuffer outputBuffer = context.Outputs.GetSampleBuffer(0);
 
+                NativeArray<float> inputL = inputBuffer.GetBuffer(0);
+                NativeArray<float> inputR = inputBuffer.GetBuffer(1);
+                NativeArray<float> outputL = outputBuffer.GetBuffer(0);
+                NativeArray<float> outputR = outputBuffer.GetBuffer(1);
+
+
                 int delayInSamplesL = math.min(
-                    (int)context.Parameters.GetFloat(Parameters.LeftChannelOffset, 0),
-                    MaxDelay
+                    (int)context.Parameters.GetFloat(Parameters.ChannelOffsetL, 0),
+                    MaxDelay - inputL.Length
                 );
                 int delayInSamplesR = math.min(
-                    (int)context.Parameters.GetFloat(Parameters.RightChannelOffset, 0),
-                    MaxDelay
+                    (int)context.Parameters.GetFloat(Parameters.ChannelOffsetR, 0),
+                    MaxDelay - inputR.Length
                 );
 
-                _delayer.DelayInSamplesL = delayInSamplesL;
-                _delayer.DelayInSamplesR = delayInSamplesR;
+                float attenuationL = context.Parameters.GetFloat(Parameters.AttenuationL, 0);
+                float transverseL = context.Parameters.GetFloat(Parameters.TransverseL, 0);
+                float sagittalL = context.Parameters.GetFloat(Parameters.SagittalL, 0);
+                float coronalL = context.Parameters.GetFloat(Parameters.CoronalL, 0);
+
+                float attenuationR = context.Parameters.GetFloat(Parameters.AttenuationR, 0);
+                float transverseR = context.Parameters.GetFloat(Parameters.TransverseR, 0);
+                float sagittalR = context.Parameters.GetFloat(Parameters.SagittalR, 0);
+                float coronalR = context.Parameters.GetFloat(Parameters.CoronalR, 0);
+
 
                 _delayer.Delay(
-                    inputBuffer,
-                    outputBuffer,
-                    ref _delayBufferL,
-                    ref _delayBufferR
+                    delayInSamplesL,
+                    delayInSamplesR,
+                    inputL,
+                    inputR,
+                    out NativeArray<float> intermediateBufferL,
+                    out NativeArray<float> intermediateBufferR
                 );
+
+
+                // set Transverse to samples
+
+
+                // set Sagittal to samples
+
+
+                // set Coronal to samples
+
+
+                // recalculate samples to output buffer
+                InfillBuffer(in intermediateBufferL, ref outputL);
+                InfillBuffer(in intermediateBufferR, ref outputR);
+                // service
+                intermediateBufferL.Dispose();
+                intermediateBufferR.Dispose();
             }
 
             public void Dispose()
             {
-                _delayBufferL.Dispose();
-                _delayBufferR.Dispose();
+                _delayer.Dispose();
             }
-        }
 
-        public struct KernelUpdate : IAudioKernelUpdate<Parameters, SampleProviders, AudioKernel>
-        {
-            public void Update(ref AudioKernel audioKernel)
-            {
-            }
-        }
-
-        public static DSPNode CreateNode(DSPCommandBlock block, int channels)
-        {
-            DSPNode node = block
-                .CreateDSPNode<Parameters, SampleProviders, AudioKernel>();
-
-            block.AddInletPort(node, channels);
-            block.AddOutletPort(node, channels);
-
-            return node;
-        }
-
-        internal struct Delayer
-        {
-            internal int DelayInSamplesL;
-            internal int DelayInSamplesR;
-
-            // Delay left or right channel a number of samples.
-            public void Delay(
-                SampleBuffer input,
-                SampleBuffer output,
-                ref NativeFillBuffer delayBufferL,
-                ref NativeFillBuffer delayBufferR
-            )
-            {
-                NativeArray<float> inputL = input.GetBuffer(0);
-                NativeArray<float> inputR = input.GetBuffer(1);
-                NativeArray<float> outputL = output.GetBuffer(0);
-                NativeArray<float> outputR = output.GetBuffer(1);
-
-                if (inputL.Length != inputR.Length)
-                    throw new ApplicationException("Input buffers are different size.");
-
-                // push to delay buffers
-                //TODO:2022-08-03 14:09:40  required optimization
-                delayBufferL.Write(inputL, inputL.Length);
-                delayBufferR.Write(inputR, inputR.Length);
-
-                int bufferSizeL = delayBufferL.Length;
-                int bufferSizeR = delayBufferR.Length;
-                int readSamplesFromBufferL = bufferSizeL - DelayInSamplesL < 0 ? 0 : bufferSizeL - DelayInSamplesL;
-                int readSamplesFromBufferR = bufferSizeR - DelayInSamplesR < 0 ? 0 : bufferSizeR - DelayInSamplesR;
-                
-                NativeArray<float> delayedSampleArrayL = new NativeArray<float>(readSamplesFromBufferL, Allocator.AudioKernel);
-                NativeArray<float> delayedSampleArrayR = new NativeArray<float>(readSamplesFromBufferR, Allocator.AudioKernel);
-                delayBufferL.Read(ref delayedSampleArrayL, 0, readSamplesFromBufferL);
-                delayBufferR.Read(ref delayedSampleArrayR, 0, readSamplesFromBufferR);
-                // recalculate samples to output buffer
-                InfillBuffer(in delayedSampleArrayL, ref outputL);
-                InfillBuffer(in delayedSampleArrayR, ref outputR);
-                
-                // service
-                delayBufferL.ShiftBuffer(readSamplesFromBufferL);
-                delayBufferR.ShiftBuffer(readSamplesFromBufferR);
-                delayedSampleArrayL.Dispose();
-                delayedSampleArrayR.Dispose();
-            }
+            #region Utils
 
             /// <summary>
             /// Resize buffer data
             /// </summary>
-            private void InfillBuffer(in NativeArray<float> from, ref NativeArray<float> to)
+            private static void InfillBuffer(in NativeArray<float> from, ref NativeArray<float> to)
             {
                 if (to.Length > from.Length)
                 {
@@ -153,8 +118,9 @@ namespace DSPGraph.Audio.DSP.Filters
                     int fromToDif = to.Length - from.Length;
                     for (int i = fromToDif; i < to.Length; i++)
                     {
-                        to[i] = from[i-fromToDif];
+                        to[i] = from[i - fromToDif];
                     }
+
                     for (int i = 0; i < fromToDif; i++)
                     {
                         to[i] = 0f;
@@ -180,6 +146,84 @@ namespace DSPGraph.Audio.DSP.Filters
                     }
                 }
             }
+
+            #endregion
         }
+
+        public struct KernelUpdate : IAudioKernelUpdate<Parameters, SampleProviders, AudioKernel>
+        {
+            public void Update(ref AudioKernel audioKernel)
+            {
+            }
+        }
+
+        public static DSPNode CreateNode(DSPCommandBlock block, int channels)
+        {
+            DSPNode node = block
+                .CreateDSPNode<Parameters, SampleProviders, AudioKernel>();
+
+            block.AddInletPort(node, channels);
+            block.AddOutletPort(node, channels);
+
+            return node;
+        }
+
+        #region SubComponents
+
+        private struct Delayer : IDisposable
+        {
+            [NativeDisableContainerSafetyRestriction]
+            private NativeFillBuffer _delayBufferL;
+
+            [NativeDisableContainerSafetyRestriction]
+            private NativeFillBuffer _delayBufferR;
+
+            public Delayer(int maxDelay)
+            {
+                _delayBufferL = new NativeFillBuffer(maxDelay, Allocator.AudioKernel);
+                _delayBufferR = new NativeFillBuffer(maxDelay, Allocator.AudioKernel);
+            }
+
+            // Delay left or right channel a number of samples.
+            public void Delay(
+                int delayInSamplesL,
+                int delayInSamplesR,
+                in NativeArray<float> inputL,
+                in NativeArray<float> inputR,
+                out NativeArray<float> spatChannelL,
+                out NativeArray<float> spatChannelR
+            )
+            {
+                if (inputL.Length != inputR.Length)
+                    throw new ApplicationException("Input buffers are different size.");
+
+                // push to delay buffers
+                //TODO:2022-08-03 14:09:40  required optimization
+                _delayBufferL.Write(inputL, inputL.Length);
+                _delayBufferR.Write(inputR, inputR.Length);
+
+                int bufferSizeL = _delayBufferL.Length;
+                int bufferSizeR = _delayBufferR.Length;
+                int readSamplesFromBufferL = bufferSizeL - delayInSamplesL < 0 ? 0 : bufferSizeL - delayInSamplesL;
+                int readSamplesFromBufferR = bufferSizeR - delayInSamplesR < 0 ? 0 : bufferSizeR - delayInSamplesR;
+
+                spatChannelL = new NativeArray<float>(readSamplesFromBufferL, Allocator.AudioKernel);
+                spatChannelR = new NativeArray<float>(readSamplesFromBufferR, Allocator.AudioKernel);
+
+                _delayBufferL.Read(ref spatChannelL, 0, readSamplesFromBufferL);
+                _delayBufferR.Read(ref spatChannelR, 0, readSamplesFromBufferR);
+
+                _delayBufferL.ShiftBuffer(readSamplesFromBufferL);
+                _delayBufferR.ShiftBuffer(readSamplesFromBufferR);
+            }
+
+            public void Dispose()
+            {
+                _delayBufferL.Dispose();
+                _delayBufferR.Dispose();
+            }
+        }
+
+        #endregion
     }
 }

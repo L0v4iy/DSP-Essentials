@@ -5,10 +5,8 @@ using DSPGraph.Audio.DSP.Utils;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace DSPGraph.Audio.Systems.DSP
 {
@@ -41,7 +39,7 @@ namespace DSPGraph.Audio.Systems.DSP
 
 
             Entities.ForEach(
-                    (Entity e, ref WorldAudioEmitter emitter, in LocalToWorld pos, in EqualizerSetter setter) =>
+                    (Entity e, ref WorldAudioEmitter emitter, in LocalToWorld pos) =>
                     {
                         if (!emitter.Valid)
                             return;
@@ -90,55 +88,23 @@ namespace DSPGraph.Audio.Systems.DSP
 
                     using (DSPCommandBlock block = audioSystem.CreateCommandBlock())
                     {
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
-                                SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.LeftChannelOffset, leftData.SampleDelay);
-        
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
-                                SpatializerFilterDSP.AudioKernel>
-                            (emitter.SpatializerNode, SpatializerFilterDSP.Parameters.RightChannelOffset, rightData.SampleDelay);
-
-                        // set frequency filters
-                        /*block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                            EqualizerFilterDSP.AudioKernel>(
-                            emitter.EqualizerFilterNode,
-                            EqualizerFilterDSP.Parameters.Cutoff,
-                            math.clamp(
-                                1 / closestInside10mCircle * sampleRatePerChannel,
-                                1000,
-                                sampleRatePerChannel
-                            )
-                        );*/
-                        /*block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                                EqualizerFilterDSP.AudioKernel>
-                            (emitter.EqualizerFilterNode, EqualizerFilterDSP.Parameters.Cutoff, setter.Cutoff);
-                        block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                                EqualizerFilterDSP.AudioKernel>
-                            (emitter.EqualizerFilterNode, EqualizerFilterDSP.Parameters.Q, setter.Q);*/
-                        /*block.SetFloat<EqualizerFilterDSP.Parameters, EqualizerFilterDSP.SampleProviders,
-                                EqualizerFilterDSP.AudioKernel>
-                            (emitter.EqualizerFilterNode, EqualizerFilterDSP.Parameters.GainInDBs, setter.GainInDBs);*/
-
-                        // set attenuation
-                        /*DSPConnection connection = emitter.EmitterConnection;
-                        float attenuation = math.clamp(1 / closestInside10mCircle, MinAttenuation, MaxAttenuation);
-                        block.SetAttenuation(connection, attenuation);*/
+                        // L
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.ChannelOffsetL, leftData.SampleDelay);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.AttenuationL, leftData.Attenuation);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.TransverseL, leftData.TransverseFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SagittalL, leftData.SagittalFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.CoronalL, leftData.CoronalFactor);
                         
+                        // R
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.ChannelOffsetR, rightData.SampleDelay);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.AttenuationR, rightData.Attenuation);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.TransverseR, rightData.TransverseFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SagittalR, rightData.SagittalFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.CoronalR, rightData.CoronalFactor);
                     }
                 })
                 .WithoutBurst()
                 .Run();
-
-
-            /*float closestDistance = math.min(distanceL, distanceR);
-float diff = math.abs(distanceL - distanceR);
-
-float samples = diff * ;
-SpatializerFilterDSP.Channels channel = distanceL < distanceR
-    ? SpatializerFilterDSP.Channels.Left
-    : SpatializerFilterDSP.Channels.Right;
-
-float closestInside10mCircle = math.max(closestDistance - 9, 1);*/
         }
 
 

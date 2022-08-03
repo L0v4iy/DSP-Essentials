@@ -2723,7 +2723,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0035b81bb80a2c2499908b91c3002a74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  clipToPlay: {fileID: 8300000, guid: e4b2819045c4bdb41aa674a56336ceaa, type: 3}
+  clipToPlay: {fileID: 8300000, guid: 11c811c05e116e44a8a6ea35b6235a1b, type: 3}
 --- !u!1 &2018386405
 GameObject:
   m_ObjectHideFlags: 0
