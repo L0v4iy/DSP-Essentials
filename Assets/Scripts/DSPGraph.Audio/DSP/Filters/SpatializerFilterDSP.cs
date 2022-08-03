@@ -62,8 +62,7 @@ namespace DSPGraph.Audio.DSP.Filters
 
                 _delayer.DelayInSamplesL = delayInSamplesL;
                 _delayer.DelayInSamplesR = delayInSamplesR;
-                Debug.Log($"dL: {delayInSamplesL}, dR: {delayInSamplesR}");
-                
+
                 _delayer.Delay(
                     inputBuffer,
                     outputBuffer,

@@ -1,35 +1,35 @@
 ﻿using System;
+using System.Diagnostics;
 using Unity.Collections;
 
 namespace DSPGraph.Audio
 {
+    [DebuggerDisplay("Length = {Length}")]
     [BurstCompatible]
     public struct NativeFillBuffer : IDisposable
     {
-        private int _endPos;
+        public int Length { get; private set; }
+
         private NativeArray<float> _buffer;
-        public int Length => _endPos;
 
         public NativeFillBuffer(int length, Allocator allocator) : this()
         {
             _buffer = new NativeArray<float>(length, allocator);
-            _endPos = 0;
+            Length = 0;
         }
-
 
         public void ShiftBuffer(int offset)
         {
-            // zzzz1234|oooo -> 1234|oooooooo
-            for (int i = 0; i < _endPos - offset; i++)
+            // |: length marker
+            // z: elements replaced with shift
+            // o: undefined elements
+            // zzzz1234|oooo -> 1234|1234oooo
+            for (int i = 0; i < Length - offset; i++)
             {
                 _buffer[i] = _buffer[i + offset];
             }
 
-            /*for (int i = _endPos - offset; i < _endPos; i++)
-            {
-                _buffer[i] = 0f;
-            }*/
-            _endPos -= offset;
+            Length -= offset;
         }
 
         /// <summary>
@@ -37,6 +37,9 @@ namespace DSPGraph.Audio
         /// </summary>
         public void Read(ref NativeArray<float> to, int offset, int length)
         {
+            // \read start (offset)
+            // /read end   (length)
+            // 1234\1234123/41234
             for (int i = 0; i < length; i++)
             {
                 to[i] = _buffer[i + offset];
@@ -45,12 +48,15 @@ namespace DSPGraph.Audio
 
         public void Write(in NativeArray<float> from, int length)
         {
+            // |: write after ("Length" marker)
+            // /: write ends ("length" marker)
+            // 12341234|1234/ooooo
             for (int i = 0; i < length; i++)
             {
-                _buffer[i + _endPos] = from[i];
+                _buffer[i + Length] = from[i];
             }
 
-            _endPos += length;
+            Length += length;
         }
 
         public void Dispose()
