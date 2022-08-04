@@ -12,8 +12,11 @@ namespace Testings
             float td = Time.DeltaTime;
             Entities.ForEach((Entity e, ref Rotation rotation, ref RotatableComponent r) =>
                 {
-                    r.CurrentAngle += r.Speed * td;
-                    rotation.Value = quaternion.RotateY(math.radians(r.CurrentAngle));
+                    r.CurrentAngle += r.Direction * r.Speed * td;
+                    float rX = math.radians(r.CurrentAngle.x);
+                    float rY = math.radians(r.CurrentAngle.y);
+                    float rZ = math.radians(r.CurrentAngle.z);
+                    rotation.Value = quaternion.Euler(rX, rY, rZ);
                 })
                 .Run();
         }

@@ -5,6 +5,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace DSPGraph.Audio.DSP.Filters
 {
@@ -227,7 +228,6 @@ namespace DSPGraph.Audio.DSP.Filters
 
         private struct Distorer
         {
-            
             public static Distorer CreateDistorer()
             {
                 return new Distorer()
@@ -249,79 +249,81 @@ namespace DSPGraph.Audio.DSP.Filters
                 float coronalFactor
             )
             {
+                // 0 to 1
+                float transverseFactorLerp = (transverseFactor + 1f) / 2f;
+                float sagittalFactorLerp = (sagittalFactor + 1f) / 2f;
+                float coronalFactorLerp = (coronalFactor + 1f) / 2f;
+
                 // 50 - 1/2 output Hz
-                float transverseNormalizedFreq = 22050f;
-                float sagittalNormalizedFreq = 22050f;
-                float coronalNormalizedFreq = 22050f;
-
+                const float absFreq = 22000.0f;
                 // 1-100f
-                float transverseQ = 1f;
-                float sagittalQ = 1f;
-                float coronalQ = 1f;
+                const float absQ = 1.0f;
+                // -100 to 0
+                float gainInDBs = math.lerp(-100.0f, 0f, 1.0f - attenuation);
+                float linearGain = math.pow(10, gainInDBs / 20);
 
-                // 0 to -100;
-                float gain = math.lerp(100f, 0f, 1f - attenuation);
 
+                float transverseFreq = math.floor(math.lerp(absFreq / 128, absFreq, transverseFactorLerp));
+                float sagittalFreq = absFreq;
+                float coronalFreq = math.floor(math.lerp(absFreq / 256, absFreq, coronalFactorLerp));
+
+                float transverseQ = math.lerp(absQ * 64f, absQ, transverseFactorLerp);
+                float sagittalQ = absQ;
+                float coronalQ = math.lerp(absQ, absQ * 32f, coronalFactorLerp);
+
+                float transverseGain = linearGain;
+                float sagittalGain = math.lerp(linearGain / 1.41f, linearGain, sagittalFactorLerp);
+                float coronalGain = math.lerp(linearGain / 1.04f, linearGain, coronalFactorLerp);
+
+
+                // down/up
                 FilterDesigner.Coefficients transverseCoeff = transverseFactor < 0
-                    ? FilterDesigner.Design(FilterDesigner.Type.Lowpass, transverseNormalizedFreq, transverseQ, gain)
-                    : FilterDesigner.Design(FilterDesigner.Type.Highpass, transverseNormalizedFreq, transverseQ, gain);
+                    ? FilterDesigner.Design(FilterDesigner.Type.Lowshelf, transverseFreq, transverseQ, transverseGain)
+                    : FilterDesigner.Design(FilterDesigner.Type.Highshelf, transverseFreq, transverseQ, transverseGain);
 
-                FilterDesigner.Coefficients sagittalCoeff = sagittalFactor < 0
-                    ? FilterDesigner.Design(FilterDesigner.Type.Lowshelf, sagittalNormalizedFreq, sagittalQ, gain)
-                    : FilterDesigner.Design(FilterDesigner.Type.Highshelf, sagittalNormalizedFreq, sagittalQ, gain);
+                // left/right
+                FilterDesigner.Coefficients sagittalCoeff =
+                    FilterDesigner.Design(FilterDesigner.Type.Highshelf, sagittalFreq, sagittalQ, sagittalGain);
 
-                FilterDesigner.Coefficients coronalCoeff = coronalFactor < 0
-                    ? FilterDesigner.Design(FilterDesigner.Type.Bandpass, coronalNormalizedFreq / 8 * coronalFactor, coronalQ, gain)
-                    : FilterDesigner.Design(FilterDesigner.Type.Bandpass, coronalNormalizedFreq, coronalQ, gain);
+                // back/front
+                FilterDesigner.Coefficients coronalCoeff =
+                    FilterDesigner.Design(FilterDesigner.Type.Highshelf, coronalFreq, coronalQ, coronalGain);
+
+
+                FilterDesigner.Coefficients midCoefficient = new FilterDesigner.Coefficients()
+                {
+                    A = Mid(transverseCoeff.A, sagittalCoeff.A, coronalCoeff.A),
+                    g = Mid(transverseCoeff.g, sagittalCoeff.g, coronalCoeff.g), // not in use
+                    k = Mid(transverseCoeff.k, sagittalCoeff.k, coronalCoeff.k), // not in use
+                    a1 = Mid(transverseCoeff.a1, sagittalCoeff.a1, coronalCoeff.a1),
+                    a2 = Mid(transverseCoeff.a2, sagittalCoeff.a2, coronalCoeff.a2),
+                    a3 = Mid(transverseCoeff.a3, sagittalCoeff.a3, coronalCoeff.a3),
+                    m0 = Mid(transverseCoeff.m0, sagittalCoeff.m0, coronalCoeff.m0),
+                    m1 = Mid(transverseCoeff.m1, sagittalCoeff.m1, coronalCoeff.m1),
+                    m2 = Mid(transverseCoeff.m2, sagittalCoeff.m2, coronalCoeff.m2)
+                };
 
                 ProcessFilter(
-                    transverseCoeff,
-                    sagittalCoeff,
-                    coronalCoeff,
+                    midCoefficient,
                     ref sampleBuffer
                 );
             }
 
             private void ProcessFilter(
-                FilterDesigner.Coefficients tCoefficients,
-                FilterDesigner.Coefficients sCoefficients,
-                FilterDesigner.Coefficients cCoefficients,
+                FilterDesigner.Coefficients coefficients,
                 ref NativeArray<float> sampleBuffer
             )
             {
-                /*for (int i = 0; i < sampleFrames; ++i)
+                for (int i = 0; i < sampleBuffer.Length; ++i)
                 {
-                    float x = inputBuffer[i];
+                    float x = sampleBuffer[i];
                     float v3 = x - z2;
                     float v1 = coefficients.a1 * z1 + coefficients.a2 * v3;
                     float v2 = z2 + coefficients.a2 * z1 + coefficients.a3 * v3;
                     z1 = 2 * v1 - z1;
                     z2 = 2 * v2 - z2;
-                    outputBuffer[i] = coefficients.A *
+                    sampleBuffer[i] = coefficients.A *
                                       (coefficients.m0 * x + coefficients.m1 * v1 + coefficients.m2 * v2);
-                }*/
-                for (int i = 0; i < sampleBuffer.Length; ++i)
-                {
-                    float x = sampleBuffer[i];
-                    float v3 = x - z2;
-                    float v1 = Mid(tCoefficients.a1, sCoefficients.a1, cCoefficients.a1)
-                               * z1
-                               + Mid(tCoefficients.a2, sCoefficients.a2, cCoefficients.a2) * v3;
-
-                    float v2 = z2 + Mid(tCoefficients.a2, sCoefficients.a2, cCoefficients.a2)
-                                  * z1
-                                  + Mid(tCoefficients.a3, sCoefficients.a3, cCoefficients.a3) * v3;
-                    z1 = 2 * v1 - z1;
-                    z2 = 2 * v2 - z2;
-                    /*sampleBuffer[i] = Mid(tCoefficients.A, sCoefficients.A, cCoefficients.A)
-                                * (
-                                    Mid(tCoefficients.m0, sCoefficients.m0, cCoefficients.m0) * x
-                                    +
-                                    Mid(tCoefficients.m1, sCoefficients.m1, cCoefficients.m1) * v1
-                                    +
-                                    Mid(tCoefficients.m2, sCoefficients.m2, cCoefficients.m2) * v2
-                                );*/
-                    sampleBuffer[i] = Mid(tCoefficients.A, sCoefficients.A, cCoefficients.A) * x;
                 }
             }
 

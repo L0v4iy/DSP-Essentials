@@ -490,7 +490,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af746e0dfc8a4583b20d2ed6d1cabfa5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  CurrentAngle: 0
+  CurrentAngle:
+    x: 0
+    y: 0
+    z: 0
+  Direction:
+    x: 1.16
+    y: 2
+    z: 0
   Speed: 60
 --- !u!1 &1922461960
 GameObject:

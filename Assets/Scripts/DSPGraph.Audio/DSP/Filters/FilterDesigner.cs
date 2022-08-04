@@ -9,64 +9,73 @@ namespace DSPGraph.Audio.DSP.Filters
         {
             Lowpass,
             Highpass,
-            Bandpass,
-            Bell,
-            Notch,
+            Bandpass,//boom boom
+            Bell,    //zin zin
+            Notch,   //default?
             Lowshelf,
             Highshelf
         }
 
         internal struct Coefficients
         {
-            public float A, g, k, a1, a2, a3, m0, m1, m2;
+            public float
+                A, // linear gain
+                g, // normalize frequency 
+                k, // quality (tone)
+                a1, // 
+                a2, // 
+                a3, // 
+                m0, // 
+                m1, // 
+                m2; // 
         }
 
-        internal static Coefficients Design(Type type, float normalizedFrequency, float Q,
+        internal static Coefficients Design(Type type, float normalizedFrequency, float quality,
             float linearGain)
         {
             switch (type)
             {
-                case Type.Lowpass: return DesignLowpass(normalizedFrequency, Q, linearGain);
-                case Type.Highpass: return DesignHighpass(normalizedFrequency, Q, linearGain);
-                case Type.Bandpass: return DesignBandpass(normalizedFrequency, Q, linearGain);
-                case Type.Bell: return DesignBell(normalizedFrequency, Q, linearGain);
-                case Type.Notch: return DesignNotch(normalizedFrequency, Q, linearGain);
-                case Type.Lowshelf: return DesignLowshelf(normalizedFrequency, Q, linearGain);
-                case Type.Highshelf: return DesignHighshelf(normalizedFrequency, Q, linearGain);
+                case Type.Lowpass: return DesignLowpass(normalizedFrequency, quality, linearGain);
+                case Type.Highpass: return DesignHighpass(normalizedFrequency, quality, linearGain);
+                case Type.Bandpass: return DesignBandpass(normalizedFrequency, quality, linearGain);
+                case Type.Bell: return DesignBell(normalizedFrequency, quality, linearGain);
+                case Type.Notch: return DesignNotch(normalizedFrequency, quality, linearGain);
+                case Type.Lowshelf: return DesignLowshelf(normalizedFrequency, quality, linearGain);
+                case Type.Highshelf: return DesignHighshelf(normalizedFrequency, quality, linearGain);
                 default:
                     throw new ArgumentException("Unknown filter type", nameof(type));
             }
         }
 
-        internal static Coefficients Design(Type type, float cutoff, float Q, float gainInDBs,
+        internal static Coefficients Design(Type type, float cutoff, float quality, float gainInDBs,
             float sampleRate)
         {
             float linearGain = Mathf.Pow(10, gainInDBs / 20);
             switch (type)
             {
                 case Type.Lowpass:
-                    return DesignLowpass(cutoff / sampleRate, Q, linearGain);
+                    return DesignLowpass(cutoff / sampleRate, quality, linearGain);
                 case Type.Highpass:
-                    return DesignHighpass(cutoff / sampleRate, Q, linearGain);
+                    return DesignHighpass(cutoff / sampleRate, quality, linearGain);
                 case Type.Bandpass:
-                    return DesignBandpass(cutoff / sampleRate, Q, linearGain);
+                    return DesignBandpass(cutoff / sampleRate, quality, linearGain);
                 case Type.Bell:
-                    return DesignBell(cutoff / sampleRate, Q, linearGain);
+                    return DesignBell(cutoff / sampleRate, quality, linearGain);
                 case Type.Notch:
-                    return DesignNotch(cutoff / sampleRate, Q, linearGain);
+                    return DesignNotch(cutoff / sampleRate, quality, linearGain);
                 case Type.Lowshelf:
-                    return DesignLowshelf(cutoff / sampleRate, Q, linearGain);
+                    return DesignLowshelf(cutoff / sampleRate, quality, linearGain);
                 case Type.Highshelf:
-                    return DesignHighshelf(cutoff / sampleRate, Q, linearGain);
+                    return DesignHighshelf(cutoff / sampleRate, quality, linearGain);
                 default:
                     throw new ArgumentException("Unknown filter type", nameof(type));
             }
         }
 
-        private static Coefficients DesignBell(float fc, float quality, float linearGain)
+        private static Coefficients DesignBell(float normalizedFrequency, float quality, float linearGain)
         {
             float A = linearGain;
-            float g = Mathf.Tan(Mathf.PI * fc);
+            float g = Mathf.Tan(Mathf.PI * normalizedFrequency);
             float k = 1 / (quality * A);
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
@@ -77,11 +86,11 @@ namespace DSPGraph.Audio.DSP.Filters
             return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
         }
 
-        private static Coefficients DesignLowpass(float normalizedFrequency, float Q, float linearGain)
+        private static Coefficients DesignLowpass(float normalizedFrequency, float quality, float linearGain)
         {
             float A = linearGain;
             float g = Mathf.Tan(Mathf.PI * normalizedFrequency);
-            float k = 1 / Q;
+            float k = 1 / quality;
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
             float a3 = g * a2;
@@ -91,37 +100,37 @@ namespace DSPGraph.Audio.DSP.Filters
             return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
         }
 
-        private static Coefficients DesignBandpass(float normalizedFrequency, float Q, float linearGain)
+        private static Coefficients DesignBandpass(float normalizedFrequency, float quality, float linearGain)
         {
-            Coefficients coefficients = Design(Type.Lowpass, normalizedFrequency, Q, linearGain);
+            Coefficients coefficients = Design(Type.Lowpass, normalizedFrequency, quality, linearGain);
             coefficients.m1 = 1;
             coefficients.m2 = 0;
             return coefficients;
         }
 
-        private static Coefficients DesignHighpass(float normalizedFrequency, float Q, float linearGain)
+        private static Coefficients DesignHighpass(float normalizedFrequency, float quality, float linearGain)
         {
-            Coefficients coefficients = Design(Type.Lowpass, normalizedFrequency, Q, linearGain);
+            Coefficients coefficients = Design(Type.Lowpass, normalizedFrequency, quality, linearGain);
             coefficients.m0 = 1;
             coefficients.m1 = -coefficients.k;
             coefficients.m2 = -1;
             return coefficients;
         }
 
-        private static Coefficients DesignNotch(float normalizedFrequency, float Q, float linearGain)
+        private static Coefficients DesignNotch(float normalizedFrequency, float quality, float linearGain)
         {
-            Coefficients coefficients = DesignLowpass(normalizedFrequency, Q, linearGain);
+            Coefficients coefficients = DesignLowpass(normalizedFrequency, quality, linearGain);
             coefficients.m0 = 1;
             coefficients.m1 = -coefficients.k;
             coefficients.m2 = 0;
             return coefficients;
         }
 
-        private static Coefficients DesignLowshelf(float normalizedFrequency, float Q, float linearGain)
+        private static Coefficients DesignLowshelf(float normalizedFrequency, float quality, float linearGain)
         {
             float A = linearGain;
             float g = Mathf.Tan(Mathf.PI * normalizedFrequency) / Mathf.Sqrt(A);
-            float k = 1 / Q;
+            float k = 1 / quality;
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
             float a3 = g * a2;
@@ -131,11 +140,11 @@ namespace DSPGraph.Audio.DSP.Filters
             return new Coefficients { A = A, g = g, k = k, a1 = a1, a2 = a2, a3 = a3, m0 = m0, m1 = m1, m2 = m2 };
         }
 
-        private static Coefficients DesignHighshelf(float normalizedFrequency, float Q, float linearGain)
+        private static Coefficients DesignHighshelf(float normalizedFrequency, float quality, float linearGain)
         {
             float A = linearGain;
             float g = Mathf.Tan(Mathf.PI * normalizedFrequency) / Mathf.Sqrt(A);
-            float k = 1 / Q;
+            float k = 1 / quality;
             float a1 = 1 / (1 + g * (g + k));
             float a2 = g * a1;
             float a3 = g * a2;
