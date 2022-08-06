@@ -17,13 +17,13 @@ namespace DSPGraph.Audio.DSP.Filters
         {
             // in samples
             ChannelOffsetL,
-            AttenuationL,
+            SoundLevelL,
             TransverseL,
             SagittalL,
             CoronalL,
 
             ChannelOffsetR,
-            AttenuationR,
+            SoundLevelR,
             TransverseR,
             SagittalR,
             CoronalR
@@ -68,12 +68,12 @@ namespace DSPGraph.Audio.DSP.Filters
                     MaxDelay - inputR.Length
                 );
 
-                float attenuationL = context.Parameters.GetFloat(Parameters.AttenuationL, 0);
+                float soundLevelL = context.Parameters.GetFloat(Parameters.SoundLevelL, 0);
                 float transverseL = context.Parameters.GetFloat(Parameters.TransverseL, 0);
                 float sagittalL = context.Parameters.GetFloat(Parameters.SagittalL, 0);
                 float coronalL = context.Parameters.GetFloat(Parameters.CoronalL, 0);
 
-                float attenuationR = context.Parameters.GetFloat(Parameters.AttenuationR, 0);
+                float soundLevelR = context.Parameters.GetFloat(Parameters.SoundLevelR, 0);
                 float transverseR = context.Parameters.GetFloat(Parameters.TransverseR, 0);
                 float sagittalR = context.Parameters.GetFloat(Parameters.SagittalR, 0);
                 float coronalR = context.Parameters.GetFloat(Parameters.CoronalR, 0);
@@ -90,8 +90,8 @@ namespace DSPGraph.Audio.DSP.Filters
 
 
                 // set Transverse, Sagittal, Coronal to samples
-                _distorerL.Distort(ref intermediateBufferL, attenuationL, transverseL, sagittalL, coronalL);
-                _distorerR.Distort(ref intermediateBufferR, attenuationR, transverseR, sagittalR, coronalR);
+                _distorerL.Distort(ref intermediateBufferL, soundLevelL, transverseL, sagittalL, coronalL);
+                _distorerR.Distort(ref intermediateBufferR, soundLevelR, transverseR, sagittalR, coronalR);
 
 
                 // recalculate samples to output buffer
@@ -243,7 +243,7 @@ namespace DSPGraph.Audio.DSP.Filters
             public void Distort
             (
                 ref NativeArray<float> sampleBuffer,
-                float attenuation,
+                float soundLevel,
                 float transverseFactor,
                 float sagittalFactor,
                 float coronalFactor
@@ -258,9 +258,8 @@ namespace DSPGraph.Audio.DSP.Filters
                 const float absFreq = 22000.0f;
                 // 1-100f
                 const float absQ = 1.0f;
-                // -100 to 0
-                float gainInDBs = math.lerp(-100.0f, 0f, 1.0f - attenuation);
-                float linearGain = math.pow(10, gainInDBs / 20);
+
+                float linearGain = math.pow(10, soundLevel / 20);
 
 
                 float transverseFreq = math.floor(math.lerp(absFreq / 128, absFreq, transverseFactorLerp));
@@ -272,14 +271,13 @@ namespace DSPGraph.Audio.DSP.Filters
                 float coronalQ = math.lerp(absQ, absQ * 32f, coronalFactorLerp);
 
                 float transverseGain = linearGain;
-                float sagittalGain = math.lerp(linearGain / 1.41f, linearGain, sagittalFactorLerp);
-                float coronalGain = math.lerp(linearGain / 1.04f, linearGain, coronalFactorLerp);
+                float sagittalGain = math.lerp(linearGain, linearGain, sagittalFactorLerp);
+                float coronalGain = math.lerp(linearGain, linearGain, coronalFactorLerp);
 
 
                 // down/up
-                FilterDesigner.Coefficients transverseCoeff = transverseFactor < 0
-                    ? FilterDesigner.Design(FilterDesigner.Type.Lowshelf, transverseFreq, transverseQ, transverseGain)
-                    : FilterDesigner.Design(FilterDesigner.Type.Highshelf, transverseFreq, transverseQ, transverseGain);
+                FilterDesigner.Coefficients transverseCoeff = FilterDesigner.Design(FilterDesigner.Type.Highshelf,
+                    transverseFreq, transverseQ, transverseGain);
 
                 // left/right
                 FilterDesigner.Coefficients sagittalCoeff =

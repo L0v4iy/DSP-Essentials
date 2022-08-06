@@ -27,7 +27,7 @@ namespace DSPGraph.Audio.Components
     public struct ChannelData
     {
         public float SampleDelay;
-        public float Attenuation;
+        public float SoundLevel;
 
 
         // Factors 

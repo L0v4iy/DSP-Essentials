@@ -62,16 +62,14 @@ namespace DSPGraph.Audio.Systems.DSP
                         float3 relativeNormalizedR = math.normalize(relativePositionR);
                         // left config
                         emitter.LeftChannelData.SampleDelay = distanceL * sampleRatePerChannel / SpeedOfSoundMPerS;
-                        emitter.LeftChannelData.Attenuation =
-                            SubstanceUtil.CalculateAttenuationFactor(distanceL, soundAbsorptCoeff);
+                        emitter.LeftChannelData.SoundLevel = SubstanceUtil.CalculateSoundLevel(distanceL);
                         emitter.LeftChannelData.TransverseFactor = math.dot(math.up() + receiverEulerL, relativeNormalizedL);
                         emitter.LeftChannelData.SagittalFactor = math.dot(math.left() + receiverEulerL, relativeNormalizedL);
                         emitter.LeftChannelData.CoronalFactor = math.dot(math.forward() + receiverEulerL, relativeNormalizedL);
 
                         // right config
                         emitter.RightChannelData.SampleDelay = distanceR * sampleRatePerChannel / SpeedOfSoundMPerS;
-                        emitter.RightChannelData.Attenuation =
-                            SubstanceUtil.CalculateAttenuationFactor(distanceR, soundAbsorptCoeff);
+                        emitter.RightChannelData.SoundLevel = SubstanceUtil.CalculateSoundLevel(distanceR);
                         emitter.RightChannelData.TransverseFactor = math.dot(math.up() + receiverEulerR, relativeNormalizedR);
                         emitter.RightChannelData.SagittalFactor =  math.dot(math.right() + receiverEulerR, relativeNormalizedR);
                         emitter.RightChannelData.CoronalFactor =  math.dot(math.forward() + receiverEulerR, relativeNormalizedR);
@@ -90,14 +88,14 @@ namespace DSPGraph.Audio.Systems.DSP
                     {
                         // L
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.ChannelOffsetL, leftData.SampleDelay);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.AttenuationL, leftData.Attenuation);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SoundLevelL, leftData.SoundLevel);
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.TransverseL, leftData.TransverseFactor);
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SagittalL, leftData.SagittalFactor);
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.CoronalL, leftData.CoronalFactor);
                         
                         // R
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.ChannelOffsetR, rightData.SampleDelay);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.AttenuationR, rightData.Attenuation);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SoundLevelR, rightData.SoundLevel);
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.TransverseR, rightData.TransverseFactor);
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.SagittalR, rightData.SagittalFactor);
                         block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.CoronalR, rightData.CoronalFactor);

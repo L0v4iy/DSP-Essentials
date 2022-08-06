@@ -12,12 +12,25 @@ namespace DSPGraph.Audio.DSP.Utils
     [BurstCompile]
     public static class SubstanceUtil
     {
-        public static float CalculateAttenuationFactor(float distance, float attenuationCoeff)
+        private static readonly double Io = Math.Pow(10d, -12d);
+
+        public static float CalculateSoundLevel(float distance)
         {
-            const float soundPress = 1f;
-            return soundPress * math.exp(-0.1151f * attenuationCoeff * distance);
+            return (float)CalculateSoundLevel(10d, 0d, distance);
         }
-        
+
+        private static double CalculateSoundLevel(double R1, double B1, double R2)
+        {
+            double B2 = B1 + 20 * Math.Log(R1 / R2, 10);
+            return B2;
+        }
+
+        private static double CalculateSoundLevelByIntencity(double I)
+        {
+            double B = 10d * Math.Log(I / Io, 10d);
+            return B;
+        }
+
         public static float GetSubstanceSoundAbsorptionCoefficient(SurroundedSubstance substance)
         {
             return substance switch
