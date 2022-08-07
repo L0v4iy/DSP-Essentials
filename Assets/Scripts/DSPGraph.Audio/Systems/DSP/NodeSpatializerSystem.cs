@@ -31,12 +31,9 @@ namespace DSPGraph.Audio.Systems.DSP
             float3 receiverEulerL = float3.zero;
             float3 receiverEulerR = float3.zero;
 
-
             AudioSystem audioSystem = World.GetOrCreateSystem<AudioSystem>();
             int sampleRate = audioSystem.SampleRate;
             int outputChannelCount = audioSystem.OutputChannelCount;
-            float soundAbsorptCoeff = SubstanceUtil.GetSubstanceSoundAbsorptionCoefficient(SurroundedSubstance.Air);
-
 
             Entities.ForEach(
                     (Entity e, ref WorldAudioEmitter emitter, in LocalToWorld pos) =>
@@ -53,6 +50,7 @@ namespace DSPGraph.Audio.Systems.DSP
                         float distanceR = math.length(relativePositionR);
                         
                         // define euler angles (xyz)
+                        // dont do this
                         float3 emitterEuler = float3.zero;
 
                         // normal | mono | invert 

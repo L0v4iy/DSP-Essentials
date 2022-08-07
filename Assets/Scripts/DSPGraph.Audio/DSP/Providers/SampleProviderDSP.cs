@@ -9,9 +9,10 @@ namespace DSPGraph.Audio.DSP.Providers
 
     public class SampleProviderDSP
     {
+        private const int ChannelSampleSize = 1024;
         public enum Parameters
         {
-            ResampleCoef
+            ResampleCoeff
         }
 
         public enum SampleProviders
@@ -31,8 +32,8 @@ namespace DSPGraph.Audio.DSP.Providers
             
             public void Initialize()
             {
-                _resampleBuffer = new NativeArray<float>(1025 * 2, Allocator.AudioKernel);
-                _resampler.Position = (double)_resampleBuffer.Length / 2;
+                _resampleBuffer = new NativeArray<float>(ChannelSampleSize * 2, Allocator.AudioKernel);
+                _resampler.Position = ChannelSampleSize;
             }
 
             public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)
@@ -54,7 +55,7 @@ namespace DSPGraph.Audio.DSP.Providers
                         _resampleBuffer,
                         buffer,
                         context.Parameters,
-                        Parameters.ResampleCoef
+                        Parameters.ResampleCoeff
                     );
 
                     if (finished)

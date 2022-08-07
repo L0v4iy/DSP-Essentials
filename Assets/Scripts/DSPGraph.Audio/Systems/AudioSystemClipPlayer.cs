@@ -44,7 +44,7 @@ namespace DSPGraph.Audio.Systems
                 float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
                 block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
                     SampleProviderDSP.AudioKernel>(emitter.SampleProviderNode,
-                    SampleProviderDSP.Parameters.ResampleCoef, resampleRate);
+                    SampleProviderDSP.Parameters.ResampleCoeff, resampleRate);
 
                 // Assign the sample provider to the slot of the node.
                 block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
@@ -73,7 +73,7 @@ namespace DSPGraph.Audio.Systems
                 float resampleRate = (float)audioClip.frequency / AudioSettings.outputSampleRate;
                 block.SetFloat<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,
                     SampleProviderDSP.AudioKernel>(node,
-                    SampleProviderDSP.Parameters.ResampleCoef, resampleRate);
+                    SampleProviderDSP.Parameters.ResampleCoeff, resampleRate);
 
                 // Assign the sample provider to the slot of the node.
                 block.SetSampleProvider<SampleProviderDSP.Parameters, SampleProviderDSP.SampleProviders,

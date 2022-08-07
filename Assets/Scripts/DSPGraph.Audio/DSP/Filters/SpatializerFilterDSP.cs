@@ -1,11 +1,9 @@
 ﻿using System;
-using System.ComponentModel;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace DSPGraph.Audio.DSP.Filters
 {
@@ -36,6 +34,9 @@ namespace DSPGraph.Audio.DSP.Filters
         [BurstCompile(CompileSynchronously = true)]
         public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
+            private Resampler _resampler;
+            private NativeArray<float> _resampleBuffer;
+
             private Delayer _delayer;
             private Distorer _distorerL;
             private Distorer _distorerR;
@@ -45,6 +46,10 @@ namespace DSPGraph.Audio.DSP.Filters
                 _delayer = new Delayer(MaxDelay);
                 _distorerL = Distorer.CreateDistorer();
                 _distorerR = Distorer.CreateDistorer();
+
+                int ChannelSampleSize = 1024;
+                _resampleBuffer = new NativeArray<float>(ChannelSampleSize * 2, Allocator.AudioKernel);
+                _resampler.Position = ChannelSampleSize;
             }
 
 
@@ -92,11 +97,15 @@ namespace DSPGraph.Audio.DSP.Filters
                 // set Transverse, Sagittal, Coronal to samples
                 _distorerL.Distort(ref intermediateBufferL, soundLevelL, transverseL, sagittalL, coronalL);
                 _distorerR.Distort(ref intermediateBufferR, soundLevelR, transverseR, sagittalR, coronalR);
-
-
+                
                 // recalculate samples to output buffer
-                InfillBuffer(in intermediateBufferL, ref outputL);
-                InfillBuffer(in intermediateBufferR, ref outputR);
+                
+                Resampler.ResampleTo(in intermediateBufferL, ref outputL);
+                Resampler.ResampleTo(in intermediateBufferR, ref outputR);
+                
+                /*InfillBuffer(in intermediateBufferL, ref outputL);
+                InfillBuffer(in intermediateBufferR, ref outputR);*/
+                
                 // service
                 intermediateBufferL.Dispose();
                 intermediateBufferR.Dispose();
@@ -271,8 +280,8 @@ namespace DSPGraph.Audio.DSP.Filters
                 float coronalQ = math.lerp(absQ, absQ * 32f, coronalFactorLerp);
 
                 float transverseGain = linearGain;
-                float sagittalGain = math.lerp(linearGain, linearGain, sagittalFactorLerp);
-                float coronalGain = math.lerp(linearGain, linearGain, coronalFactorLerp);
+                float sagittalGain = math.lerp(linearGain / 1.41f, linearGain, sagittalFactorLerp);
+                float coronalGain = math.lerp(linearGain / 1.04f, linearGain, coronalFactorLerp);
 
 
                 // down/up

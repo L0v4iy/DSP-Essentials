@@ -3,6 +3,8 @@ using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Mathematics;
+using UnityEngine;
 
 namespace DSPGraph.Audio.DSP
 {
@@ -15,7 +17,7 @@ namespace DSPGraph.Audio.DSP
 
         public bool ResampleLerpRead<T>(
             SampleProvider provider,
-            NativeArray<float> input,
+            NativeArray<float> input, // bufferLength * channelCount
             SampleBuffer outputBuffer,
             ParameterData<T> parameterData,
             T positionParam)
@@ -58,7 +60,13 @@ namespace DSPGraph.Audio.DSP
             return finishedSampleProvider;
         }
 
-        // read either mono or stereo, always convert to stereo interleaved
+        /// <summary>
+        /// Read either mono or stereo, always convert to stereo interleaved
+        /// fill pattern: 0000000000011111111111
+        /// </summary>
+        /// <param name="provider"></param>
+        /// <param name="destination">NativeSlice with length = provider.output.length*channelCount</param>
+        /// <returns></returns>
         private static unsafe bool ReadSamples(SampleProvider provider, NativeSlice<float> destination)
         {
             if (!provider.Valid)
@@ -73,6 +81,7 @@ namespace DSPGraph.Audio.DSP
                 int read = provider.Read(destination.Slice(0, destination.Length));
                 if (read < destinationFrames)
                 {
+                    // fill bu empty full buffer
                     for (int i = read; i < destinationFrames; i++)
                     {
                         destination[i] = 0;
@@ -101,6 +110,33 @@ namespace DSPGraph.Audio.DSP
             }
 
             return finished;
+        }
+
+        public static void ResampleTo(in NativeArray<float> inBuffer, ref NativeArray<float> outBuffer)
+        {
+            float resampleRate = (float)(inBuffer.Length-1) / (float)(outBuffer.Length-1);
+
+            for (int i = 0; i < outBuffer.Length; i++)
+            {
+                float samplePositionIn = resampleRate * i;
+                float positionFraction = math.abs(i - samplePositionIn);
+
+                int inSampleIndexMin = (int)math.floor(samplePositionIn);
+                int inSampleIndexMax = (int)math.ceil(samplePositionIn);
+
+                if (inBuffer.Length <= inSampleIndexMin || inBuffer.Length <= inSampleIndexMax)
+                {
+                    return;
+                }
+
+                float sample = math.lerp(
+                    inBuffer[inSampleIndexMin],
+                    inBuffer[inSampleIndexMax],
+                    positionFraction
+                );
+
+                outBuffer[i] = sample;
+            }
         }
     }
 }
