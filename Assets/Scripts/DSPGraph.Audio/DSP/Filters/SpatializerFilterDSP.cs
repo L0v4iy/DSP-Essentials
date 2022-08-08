@@ -34,7 +34,8 @@ namespace DSPGraph.Audio.DSP.Filters
         [BurstCompile(CompileSynchronously = true)]
         public struct AudioKernel : IAudioKernel<Parameters, SampleProviders>
         {
-            private Resampler _resampler;
+            private ResamplerSingle _resamplerL;
+            private ResamplerSingle _resamplerR;
             private NativeArray<float> _resampleBuffer;
 
             private Delayer _delayer;
@@ -49,7 +50,6 @@ namespace DSPGraph.Audio.DSP.Filters
 
                 int ChannelSampleSize = 1024;
                 _resampleBuffer = new NativeArray<float>(ChannelSampleSize * 2, Allocator.AudioKernel);
-                _resampler.Position = ChannelSampleSize;
             }
 
 
@@ -100,8 +100,8 @@ namespace DSPGraph.Audio.DSP.Filters
                 
                 // recalculate samples to output buffer
                 
-                Resampler.ResampleTo(in intermediateBufferL, ref outputL);
-                Resampler.ResampleTo(in intermediateBufferR, ref outputR);
+                _resamplerL.ResampleTo(in intermediateBufferL, ref outputL);
+                _resamplerR.ResampleTo(in intermediateBufferR, ref outputR);
                 
                 /*InfillBuffer(in intermediateBufferL, ref outputL);
                 InfillBuffer(in intermediateBufferR, ref outputR);*/

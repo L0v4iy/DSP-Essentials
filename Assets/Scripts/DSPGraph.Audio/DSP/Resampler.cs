@@ -111,10 +111,16 @@ namespace DSPGraph.Audio.DSP
 
             return finished;
         }
+    }
 
-        public static void ResampleTo(in NativeArray<float> inBuffer, ref NativeArray<float> outBuffer)
+    public struct ResamplerSingle
+    {
+        private float _lastSample;
+
+        public void ResampleTo(in NativeArray<float> inBuffer, ref NativeArray<float> outBuffer)
         {
-            float resampleRate = (float)(inBuffer.Length-1) / (float)(outBuffer.Length-1);
+            float resampleRate = (float)(inBuffer.Length - 1) / (float)(outBuffer.Length - 1);
+            _lastSample = 0f;
 
             for (int i = 0; i < outBuffer.Length; i++)
             {
@@ -129,13 +135,21 @@ namespace DSPGraph.Audio.DSP
                     return;
                 }
 
-                float sample = math.lerp(
+                float prevSample = inSampleIndexMin < 0 ? _lastSample : inBuffer[inSampleIndexMax];
+
+                float sample = inBuffer[inSampleIndexMax];
+                _lastSample = inSampleIndexMax;
+
+                outBuffer[i] = (float)(prevSample + (sample - prevSample) * positionFraction);
+
+
+                /*float sample = math.lerp(
                     inBuffer[inSampleIndexMin],
                     inBuffer[inSampleIndexMax],
                     positionFraction
                 );
 
-                outBuffer[i] = sample;
+                outBuffer[i] = sample;*/
             }
         }
     }
