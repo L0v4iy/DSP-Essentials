@@ -1,12 +1,12 @@
 ﻿using System;
 using DSPGraph.Audio.Components;
 using DSPGraph.Audio.DSP.Filters;
-using DSPGraph.Audio.DSP.Utils;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace DSPGraph.Audio.Systems.DSP
 {
@@ -14,9 +14,6 @@ namespace DSPGraph.Audio.Systems.DSP
     [BurstCompile(CompileSynchronously = true)]
     public partial class NodePositioningSystem : SystemBase
     {
-        private const float MinAttenuation = 0.1f;
-        private const float MaxAttenuation = 1f;
-
         private const int SpeedOfSoundMPerS = 343;
 
 
@@ -26,10 +23,12 @@ namespace DSPGraph.Audio.Systems.DSP
             // get ears
             Entity receiverEntity = EntityManager.CreateEntityQuery(typeof(AudioReceiver)).GetSingletonEntity();
             AudioReceiver audioReceiver = EntityManager.GetComponentData<AudioReceiver>(receiverEntity);
-            float3 receiverPosL = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.LeftReceiver).Position;
-            float3 receiverPosR = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.RightReceiver).Position;
-            float3 receiverEulerL = float3.zero;
-            float3 receiverEulerR = float3.zero;
+            LocalToWorld localToWorldL = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.LeftReceiver);
+            LocalToWorld localToWorldR = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.RightReceiver);
+            float3 receiverPosL = localToWorldL.Position;
+            float3 receiverPosR = localToWorldR.Position;
+            Quaternion quatL = localToWorldL.Rotation;
+            Quaternion quatR = localToWorldR.Rotation;
 
             AudioSystem audioSystem = World.GetOrCreateSystem<AudioSystem>();
             int sampleRate = audioSystem.SampleRate;
@@ -40,7 +39,7 @@ namespace DSPGraph.Audio.Systems.DSP
                     {
                         if (!emitter.Valid)
                             return;
-                        
+
                         // calculate vector to listener
                         float3 relativePositionL = pos.Position - receiverPosL;
                         float3 relativePositionR = pos.Position - receiverPosR;
@@ -59,22 +58,39 @@ namespace DSPGraph.Audio.Systems.DSP
                         // left config
                         emitter.LeftChannelData.SampleDelay = distanceL * sampleRatePerChannel / SpeedOfSoundMPerS;
                         emitter.LeftChannelData.DistanceToReceiver = distanceL;
-                        emitter.LeftChannelData.TransverseFactor =
-                            math.dot(math.up() + receiverEulerL, relativeNormalizedL);
-                        emitter.LeftChannelData.SagittalFactor =
-                            math.dot(math.left() + receiverEulerL, relativeNormalizedL);
-                        emitter.LeftChannelData.CoronalFactor =
-                            math.dot(math.forward() + receiverEulerL, relativeNormalizedL);
+                        emitter.LeftChannelData.TransverseFactor = math.dot
+                        (
+                            RotateVectorByQuaternion(math.up(), quatL),
+                            relativeNormalizedL
+                        );
+                        emitter.LeftChannelData.SagittalFactor = math.dot
+                        (
+                            RotateVectorByQuaternion(math.left(), quatL),
+                            relativeNormalizedL
+                        );
+                        emitter.LeftChannelData.CoronalFactor = math.dot(
+                            RotateVectorByQuaternion(math.forward(), quatL),
+                            relativeNormalizedL
+                        );
 
                         // right config
                         emitter.RightChannelData.SampleDelay = distanceR * sampleRatePerChannel / SpeedOfSoundMPerS;
                         emitter.RightChannelData.DistanceToReceiver = distanceR;
-                        emitter.RightChannelData.TransverseFactor =
-                            math.dot(math.up() + receiverEulerR, relativeNormalizedR);
-                        emitter.RightChannelData.SagittalFactor =
-                            math.dot(math.right() + receiverEulerR, relativeNormalizedR);
-                        emitter.RightChannelData.CoronalFactor =
-                            math.dot(math.forward() + receiverEulerR, relativeNormalizedR);
+                        emitter.RightChannelData.TransverseFactor = math.dot
+                        (
+                            RotateVectorByQuaternion(math.up(), quatR),
+                            relativeNormalizedR
+                        );
+                        emitter.RightChannelData.SagittalFactor = math.dot
+                        (
+                            RotateVectorByQuaternion(math.left(), quatR),
+                            relativeNormalizedR
+                        );
+                        emitter.RightChannelData.CoronalFactor = math.dot
+                        (
+                            RotateVectorByQuaternion(math.forward(), quatR),
+                            relativeNormalizedR
+                        );
                     })
                 .Run();
 
@@ -89,18 +105,38 @@ namespace DSPGraph.Audio.Systems.DSP
                     using (DSPCommandBlock block = audioSystem.CreateCommandBlock())
                     {
                         // L
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders, SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode, SpatializerFilterDSP.Parameters.ChannelOffsetL, leftData.SampleDelay);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.ReceiverDistanceL, leftData.DistanceToReceiver);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.TransverseL, leftData.TransverseFactor);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.SagittalL, leftData.SagittalFactor);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.CoronalL, leftData.CoronalFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.ChannelOffsetL, leftData.SampleDelay);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.ReceiverDistanceL, leftData.DistanceToReceiver);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.TransverseL, leftData.TransverseFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.SagittalL, leftData.SagittalFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.CoronalL, leftData.CoronalFactor);
 
                         // R
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.ChannelOffsetR, rightData.SampleDelay);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.ReceiverDistanceR, rightData.DistanceToReceiver);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.TransverseR, rightData.TransverseFactor);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.SagittalR, rightData.SagittalFactor);
-                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,SpatializerFilterDSP.Parameters.CoronalR, rightData.CoronalFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.ChannelOffsetR, rightData.SampleDelay);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.ReceiverDistanceR, rightData.DistanceToReceiver);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.TransverseR, rightData.TransverseFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.SagittalR, rightData.SagittalFactor);
+                        block.SetFloat<SpatializerFilterDSP.Parameters, SpatializerFilterDSP.SampleProviders,
+                            SpatializerFilterDSP.AudioKernel>(emitter.SpatializerNode,
+                            SpatializerFilterDSP.Parameters.CoronalR, rightData.CoronalFactor);
                     }
                 })
                 .WithoutBurst()
@@ -111,6 +147,21 @@ namespace DSPGraph.Audio.Systems.DSP
         private static float3 CalculateAngleBetweenReceiverAndEmitter(float3 receiverPos, float3 emitterPos)
         {
             throw new NotImplementedException();
+        }
+
+        private static float3 RotateVectorByQuaternion(in float3 v, in quaternion q)
+        {
+            // Extract the vector part of the quaternion
+            float4 qv = q.value;
+            float3 u = new float3(qv.x, qv.y, qv.z);
+
+            // Extract the scalar part of the quaternion
+            float s = qv.w;
+
+            // Do the math
+            return 2.0f * math.dot(u, v) * u
+                   + (s * s - math.dot(u, u)) * v
+                   + 2.0f * s * math.cross(u, v);
         }
     }
 }
