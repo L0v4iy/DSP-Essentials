@@ -304,7 +304,7 @@ namespace DSPGraph.Audio.DSP.Filters
                 FilterDesigner.Coefficients sagittalCoeff = LerpCoefficients
                 (
                     FilterDesigner.Design(FilterDesigner.Type.Lowpass, sagittalFreq, sagittalQ, sagittalGain),
-                    FilterDesigner.Design(FilterDesigner.Type.Notch, sagittalFreq, sagittalQ, sagittalGain),
+                    FilterDesigner.Design(FilterDesigner.Type.Lowpass, sagittalFreq, sagittalQ, sagittalGain),
                     sagittalFactorLerp
                 );
 

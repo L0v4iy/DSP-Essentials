@@ -1,5 +1,4 @@
-﻿using System;
-using DSPGraph.Audio.Components;
+﻿using DSPGraph.Audio.Components;
 using DSPGraph.Audio.DSP.Filters;
 using Unity.Audio;
 using Unity.Burst;
@@ -27,8 +26,8 @@ namespace DSPGraph.Audio.Systems.DSP
             LocalToWorld localToWorldR = EntityManager.GetComponentData<LocalToWorld>(audioReceiver.RightReceiver);
             float3 receiverPosL = localToWorldL.Position;
             float3 receiverPosR = localToWorldR.Position;
-            Quaternion quatL = localToWorldL.Rotation;
-            Quaternion quatR = localToWorldR.Rotation;
+            Quaternion quaternionL = localToWorldL.Rotation;
+            Quaternion quaternionR = localToWorldR.Rotation;
 
             AudioSystem audioSystem = World.GetOrCreateSystem<AudioSystem>();
             int sampleRate = audioSystem.SampleRate;
@@ -46,10 +45,6 @@ namespace DSPGraph.Audio.Systems.DSP
                         float distanceL = math.length(relativePositionL);
                         float distanceR = math.length(relativePositionR);
 
-                        // define euler angles (xyz)
-                        // dont do this
-                        float3 emitterEuler = float3.zero;
-
                         // normal | mono | invert 
                         emitter.ChannelInvertRate = 0;
 
@@ -60,16 +55,16 @@ namespace DSPGraph.Audio.Systems.DSP
                         emitter.LeftChannelData.DistanceToReceiver = distanceL;
                         emitter.LeftChannelData.TransverseFactor = math.dot
                         (
-                            RotateVectorByQuaternion(math.up(), quatL),
+                            RotateVectorByQuaternion(math.up(), quaternionL),
                             relativeNormalizedL
                         );
                         emitter.LeftChannelData.SagittalFactor = math.dot
                         (
-                            RotateVectorByQuaternion(math.left(), quatL),
+                            RotateVectorByQuaternion(math.right(), quaternionL),
                             relativeNormalizedL
                         );
                         emitter.LeftChannelData.CoronalFactor = math.dot(
-                            RotateVectorByQuaternion(math.forward(), quatL),
+                            RotateVectorByQuaternion(math.forward(), quaternionL),
                             relativeNormalizedL
                         );
 
@@ -78,17 +73,17 @@ namespace DSPGraph.Audio.Systems.DSP
                         emitter.RightChannelData.DistanceToReceiver = distanceR;
                         emitter.RightChannelData.TransverseFactor = math.dot
                         (
-                            RotateVectorByQuaternion(math.up(), quatR),
+                            RotateVectorByQuaternion(math.up(), quaternionR),
                             relativeNormalizedR
                         );
                         emitter.RightChannelData.SagittalFactor = math.dot
                         (
-                            RotateVectorByQuaternion(math.left(), quatR),
+                            RotateVectorByQuaternion(math.right(), quaternionR),
                             relativeNormalizedR
                         );
                         emitter.RightChannelData.CoronalFactor = math.dot
                         (
-                            RotateVectorByQuaternion(math.forward(), quatR),
+                            RotateVectorByQuaternion(math.forward(), quaternionR),
                             relativeNormalizedR
                         );
                     })
@@ -141,12 +136,6 @@ namespace DSPGraph.Audio.Systems.DSP
                 })
                 .WithoutBurst()
                 .Run();
-        }
-
-
-        private static float3 CalculateAngleBetweenReceiverAndEmitter(float3 receiverPos, float3 emitterPos)
-        {
-            throw new NotImplementedException();
         }
 
         private static float3 RotateVectorByQuaternion(in float3 v, in quaternion q)
