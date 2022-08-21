@@ -1,9 +1,11 @@
 ﻿using System;
+using DSPGraph.Audio.DSP.Utils;
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace DSPGraph.Audio.DSP.Filters
 {
@@ -14,14 +16,14 @@ namespace DSPGraph.Audio.DSP.Filters
         public enum Parameters
         {
             // in samples
+            ReceiverDistanceL,
             ChannelOffsetL,
-            SoundLevelL,
             TransverseL,
             SagittalL,
             CoronalL,
 
+            ReceiverDistanceR,
             ChannelOffsetR,
-            SoundLevelR,
             TransverseR,
             SagittalR,
             CoronalR
@@ -73,13 +75,13 @@ namespace DSPGraph.Audio.DSP.Filters
                     MaxDelay - inputR.Length
                 );
 
-                float soundLevelL = context.Parameters.GetFloat(Parameters.SoundLevelL, 0);
                 float transverseL = context.Parameters.GetFloat(Parameters.TransverseL, 0);
+                float distanceL = context.Parameters.GetFloat(Parameters.ReceiverDistanceL, 0);
                 float sagittalL = context.Parameters.GetFloat(Parameters.SagittalL, 0);
                 float coronalL = context.Parameters.GetFloat(Parameters.CoronalL, 0);
 
-                float soundLevelR = context.Parameters.GetFloat(Parameters.SoundLevelR, 0);
                 float transverseR = context.Parameters.GetFloat(Parameters.TransverseR, 0);
+                float distanceR = context.Parameters.GetFloat(Parameters.ReceiverDistanceR, 0);
                 float sagittalR = context.Parameters.GetFloat(Parameters.SagittalR, 0);
                 float coronalR = context.Parameters.GetFloat(Parameters.CoronalR, 0);
 
@@ -93,19 +95,18 @@ namespace DSPGraph.Audio.DSP.Filters
                     out NativeArray<float> intermediateBufferR
                 );
 
-
                 // set Transverse, Sagittal, Coronal to samples
-                _distorerL.Distort(ref intermediateBufferL, soundLevelL, transverseL, sagittalL, coronalL);
-                _distorerR.Distort(ref intermediateBufferR, soundLevelR, transverseR, sagittalR, coronalR);
-                
+                _distorerL.Distort(ref intermediateBufferL, distanceL, transverseL, sagittalL, coronalL);
+                _distorerR.Distort(ref intermediateBufferR, distanceR, transverseR, sagittalR, coronalR);
+
                 // recalculate samples to output buffer
-                
+
                 _resamplerL.ResampleTo(in intermediateBufferL, ref outputL);
                 _resamplerR.ResampleTo(in intermediateBufferR, ref outputR);
-                
+
                 /*InfillBuffer(in intermediateBufferL, ref outputL);
                 InfillBuffer(in intermediateBufferR, ref outputR);*/
-                
+
                 // service
                 intermediateBufferL.Dispose();
                 intermediateBufferR.Dispose();
@@ -252,7 +253,7 @@ namespace DSPGraph.Audio.DSP.Filters
             public void Distort
             (
                 ref NativeArray<float> sampleBuffer,
-                float soundLevel,
+                float distanceToReceiver,
                 float transverseFactor,
                 float sagittalFactor,
                 float coronalFactor
@@ -268,46 +269,65 @@ namespace DSPGraph.Audio.DSP.Filters
                 // 1-100f
                 const float absQ = 1.0f;
 
+                // db/m
+                float soundLevel = SubstanceUtil.CalculateSoundLevel(distanceToReceiver);
                 float linearGain = math.pow(10, soundLevel / 20);
 
-
+                float distanceFreq = math.floor(distanceToReceiver * 10);
                 float transverseFreq = math.floor(math.lerp(absFreq / 128, absFreq, transverseFactorLerp));
                 float sagittalFreq = absFreq;
-                float coronalFreq = math.floor(math.lerp(absFreq / 256, absFreq, coronalFactorLerp));
+                float coronalFreq = math.floor(math.lerp(2000f, absFreq, coronalFactorLerp));
 
+                float distanceQ = math.floor(math.lerp(10, 1, coronalFactorLerp));
                 float transverseQ = math.lerp(absQ * 64f, absQ, transverseFactorLerp);
                 float sagittalQ = absQ;
                 float coronalQ = math.lerp(absQ, absQ * 32f, coronalFactorLerp);
 
+                float distanceGain = linearGain;
                 float transverseGain = linearGain;
                 float sagittalGain = math.lerp(linearGain / 1.41f, linearGain, sagittalFactorLerp);
                 float coronalGain = math.lerp(linearGain / 1.04f, linearGain, coronalFactorLerp);
 
 
+                FilterDesigner.Coefficients distanceCoeff =
+                    FilterDesigner.Design(FilterDesigner.Type.Lowpass, distanceFreq, distanceQ, distanceGain);
+
                 // down/up
-                FilterDesigner.Coefficients transverseCoeff = FilterDesigner.Design(FilterDesigner.Type.Highshelf,
-                    transverseFreq, transverseQ, transverseGain);
+                FilterDesigner.Coefficients transverseCoeff = LerpCoefficients
+                (
+                    FilterDesigner.Design(FilterDesigner.Type.Lowshelf, transverseFreq, transverseQ, transverseGain),
+                    FilterDesigner.Design(FilterDesigner.Type.Highshelf, transverseFreq, transverseQ, transverseGain),
+                    transverseFactorLerp
+                );
 
                 // left/right
-                FilterDesigner.Coefficients sagittalCoeff =
-                    FilterDesigner.Design(FilterDesigner.Type.Highshelf, sagittalFreq, sagittalQ, sagittalGain);
+                FilterDesigner.Coefficients sagittalCoeff = LerpCoefficients
+                (
+                    FilterDesigner.Design(FilterDesigner.Type.Lowpass, sagittalFreq, sagittalQ, sagittalGain),
+                    FilterDesigner.Design(FilterDesigner.Type.Notch, sagittalFreq, sagittalQ, sagittalGain),
+                    sagittalFactorLerp
+                );
 
                 // back/front
                 FilterDesigner.Coefficients coronalCoeff =
-                    FilterDesigner.Design(FilterDesigner.Type.Highshelf, coronalFreq, coronalQ, coronalGain);
+                    LerpCoefficients(
+                        FilterDesigner.Design(FilterDesigner.Type.Lowpass, coronalFreq, coronalQ, coronalGain),
+                        FilterDesigner.Design(FilterDesigner.Type.Notch, coronalFreq, coronalQ, coronalGain),
+                        coronalFactorLerp
+                    );
 
 
                 FilterDesigner.Coefficients midCoefficient = new FilterDesigner.Coefficients()
                 {
-                    A = Mid(transverseCoeff.A, sagittalCoeff.A, coronalCoeff.A),
-                    g = Mid(transverseCoeff.g, sagittalCoeff.g, coronalCoeff.g), // not in use
-                    k = Mid(transverseCoeff.k, sagittalCoeff.k, coronalCoeff.k), // not in use
-                    a1 = Mid(transverseCoeff.a1, sagittalCoeff.a1, coronalCoeff.a1),
-                    a2 = Mid(transverseCoeff.a2, sagittalCoeff.a2, coronalCoeff.a2),
-                    a3 = Mid(transverseCoeff.a3, sagittalCoeff.a3, coronalCoeff.a3),
-                    m0 = Mid(transverseCoeff.m0, sagittalCoeff.m0, coronalCoeff.m0),
-                    m1 = Mid(transverseCoeff.m1, sagittalCoeff.m1, coronalCoeff.m1),
-                    m2 = Mid(transverseCoeff.m2, sagittalCoeff.m2, coronalCoeff.m2)
+                    A = Mid(distanceCoeff.A, transverseCoeff.A, sagittalCoeff.A, coronalCoeff.A),
+                    g = Mid(distanceCoeff.g, transverseCoeff.g, sagittalCoeff.g, coronalCoeff.g), // not in use
+                    k = Mid(distanceCoeff.k, transverseCoeff.k, sagittalCoeff.k, coronalCoeff.k), // not in use
+                    a1 = Mid(distanceCoeff.a1, transverseCoeff.a1, sagittalCoeff.a1, coronalCoeff.a1),
+                    a2 = Mid(distanceCoeff.a2, transverseCoeff.a2, sagittalCoeff.a2, coronalCoeff.a2),
+                    a3 = Mid(distanceCoeff.a3, transverseCoeff.a3, sagittalCoeff.a3, coronalCoeff.a3),
+                    m0 = Mid(distanceCoeff.m0, transverseCoeff.m0, sagittalCoeff.m0, coronalCoeff.m0),
+                    m1 = Mid(distanceCoeff.m1, transverseCoeff.m1, sagittalCoeff.m1, coronalCoeff.m1),
+                    m2 = Mid(distanceCoeff.m2, transverseCoeff.m2, sagittalCoeff.m2, coronalCoeff.m2)
                 };
 
                 ProcessFilter(
@@ -321,22 +341,46 @@ namespace DSPGraph.Audio.DSP.Filters
                 ref NativeArray<float> sampleBuffer
             )
             {
+                //0f-1f
+                float gain = coefficients.A;
+
                 for (int i = 0; i < sampleBuffer.Length; ++i)
                 {
+                    // default value
                     float x = sampleBuffer[i];
                     float v3 = x - z2;
                     float v1 = coefficients.a1 * z1 + coefficients.a2 * v3;
                     float v2 = z2 + coefficients.a2 * z1 + coefficients.a3 * v3;
                     z1 = 2 * v1 - z1;
                     z2 = 2 * v2 - z2;
-                    sampleBuffer[i] = coefficients.A *
+                    sampleBuffer[i] = gain *
                                       (coefficients.m0 * x + coefficients.m1 * v1 + coefficients.m2 * v2);
                 }
             }
 
-            private static float Mid(float a, float b, float c)
+            private static float Mid(float val0, float val1, float val2, float val3)
             {
-                return (a + b + c) / 3;
+                return (val0 + val1 + val2 + val3) / 4;
+            }
+
+            private static FilterDesigner.Coefficients LerpCoefficients(
+                FilterDesigner.Coefficients a,
+                FilterDesigner.Coefficients b,
+                float lerpVal
+            )
+            {
+                return new FilterDesigner.Coefficients()
+                {
+                    A = math.lerp(a.A, b.A, lerpVal),
+                    g = math.lerp(a.g, b.g, lerpVal),
+                    k = math.lerp(a.k, b.k, lerpVal),
+                    a1 = math.lerp(a.a1, b.a1, lerpVal),
+                    a2 = math.lerp(a.a2, b.a2, lerpVal),
+                    a3 = math.lerp(a.a3, b.a3, lerpVal),
+                    m0 = math.lerp(a.m0, b.m0, lerpVal),
+                    m1 = math.lerp(a.m1, b.m1, lerpVal),
+                    m2 = math.lerp(a.m2, b.m2, lerpVal),
+                };
             }
         }
 

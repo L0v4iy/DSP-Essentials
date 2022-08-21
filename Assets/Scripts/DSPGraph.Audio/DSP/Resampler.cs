@@ -141,15 +141,6 @@ namespace DSPGraph.Audio.DSP
                 _lastSample = inSampleIndexMax;
 
                 outBuffer[i] = (float)(prevSample + (sample - prevSample) * positionFraction);
-
-
-                /*float sample = math.lerp(
-                    inBuffer[inSampleIndexMin],
-                    inBuffer[inSampleIndexMax],
-                    positionFraction
-                );
-
-                outBuffer[i] = sample;*/
             }
         }
     }
